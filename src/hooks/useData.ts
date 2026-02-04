@@ -1,0 +1,121 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Sector {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+interface Machine {
+  id: string;
+  code: string;
+  sector_id: string | null;
+  model: string | null;
+  manufacturer: string | null;
+}
+
+interface ServiceOrder {
+  id: string;
+  machine_id: string | null;
+  operator_id: string;
+  technician_id: string | null;
+  problem_description: string;
+  solution_description: string | null;
+  status: "open" | "in_progress" | "closed";
+  is_machine_stopped: boolean;
+  priority: "low" | "medium" | "critical";
+  spare_parts_used: string[] | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export function useSectors() {
+  const [sectors, setSectors] = useState<Sector[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSectors() {
+      const { data } = await supabase
+        .from("sectors")
+        .select("*")
+        .order("name");
+      
+      if (data) setSectors(data);
+      setLoading(false);
+    }
+    fetchSectors();
+  }, []);
+
+  return { sectors, loading };
+}
+
+export function useMachines(sectorId?: string) {
+  const [machines, setMachines] = useState<Machine[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchMachines() {
+      let query = supabase.from("machines").select("*").order("code");
+      
+      if (sectorId) {
+        query = query.eq("sector_id", sectorId);
+      }
+
+      const { data } = await query;
+      if (data) setMachines(data);
+      setLoading(false);
+    }
+    fetchMachines();
+  }, [sectorId]);
+
+  return { machines, loading };
+}
+
+export function useServiceOrders(status?: "open" | "in_progress" | "closed") {
+  const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchOrders() {
+      let query = supabase
+        .from("service_orders")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (status) {
+        query = query.eq("status", status);
+      }
+
+      const { data } = await query;
+      if (data) setOrders(data as ServiceOrder[]);
+      setLoading(false);
+    }
+    fetchOrders();
+
+    // Real-time subscription
+    const channel = supabase
+      .channel("service_orders_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "service_orders",
+        },
+        () => {
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [status]);
+
+  return { orders, loading };
+}
+
+export type { Sector, Machine, ServiceOrder };
