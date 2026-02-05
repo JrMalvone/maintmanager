@@ -22,35 +22,23 @@ export function LoginForm() {
       // Find user by name in profiles table
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, email")
         .ilike("name", name.trim())
         .maybeSingle();
 
       if (profileError) throw profileError;
       
-      if (!profileData) {
+      if (!profileData || !profileData.email) {
         throw new Error("Usuário não encontrado");
       }
 
-      // Get user email from auth using the profile id
-      const { data: userData } = await supabase.auth.admin?.getUserById(profileData.id) || {};
-      
-      // Since we can't access admin API from client, we need to use the internal email pattern
-      // Try to sign in with the generated email pattern
-      const sanitizedName = name.trim().toLowerCase().replace(/\s+/g, '.').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      
-      // We need to find the actual email - let's query auth.users through a function
-      // For now, try a simpler approach using RPC or direct email lookup
-      
-      // Actually, let's store the email in profiles for lookup
-      // For now, attempt login with pattern matching by trying the name-based email
+      // Sign in using the stored email
       const { error } = await supabase.auth.signInWithPassword({
-        email: `${sanitizedName}@cmms.internal`,
+        email: profileData.email,
         password,
       });
 
       if (error) {
-        // If direct match fails, the email might have timestamp - need better lookup
         throw new Error("Nome ou senha incorretos");
       }
 

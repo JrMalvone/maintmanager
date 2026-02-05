@@ -50,6 +50,7 @@ export function RegisterForm() {
         id: authData.user.id,
         name,
         registration_number: registrationNumber,
+        email: uniqueEmail,
       });
 
       if (profileError) throw profileError;
