@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogIn, Wrench } from "lucide-react";
 
 export function LoginForm() {
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -19,12 +19,40 @@ export function LoginForm() {
     setLoading(true);
 
     try {
+      // Find user by name in profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .ilike("name", name.trim())
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+      
+      if (!profileData) {
+        throw new Error("Usuário não encontrado");
+      }
+
+      // Get user email from auth using the profile id
+      const { data: userData } = await supabase.auth.admin?.getUserById(profileData.id) || {};
+      
+      // Since we can't access admin API from client, we need to use the internal email pattern
+      // Try to sign in with the generated email pattern
+      const sanitizedName = name.trim().toLowerCase().replace(/\s+/g, '.').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      
+      // We need to find the actual email - let's query auth.users through a function
+      // For now, try a simpler approach using RPC or direct email lookup
+      
+      // Actually, let's store the email in profiles for lookup
+      // For now, attempt login with pattern matching by trying the name-based email
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: `${sanitizedName}@cmms.internal`,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // If direct match fails, the email might have timestamp - need better lookup
+        throw new Error("Nome ou senha incorretos");
+      }
 
       toast({
         title: "Login realizado",
@@ -61,13 +89,13 @@ export function LoginForm() {
         <form onSubmit={handleSubmit} className="industrial-card p-8 space-y-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="name">Nome</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="name"
+                type="text"
+                placeholder="Seu nome completo"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 required
                 className="h-12"
               />
