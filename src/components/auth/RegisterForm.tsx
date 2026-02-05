@@ -16,10 +16,8 @@ import { Loader2, UserPlus, Wrench } from "lucide-react";
 import { ROLE_LABELS, type UserRole } from "@/lib/constants";
 
 export function RegisterForm() {
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [registrationNumber, setRegistrationNumber] = useState("");
   const [role, setRole] = useState<UserRole>("operator");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -30,9 +28,14 @@ export function RegisterForm() {
     setLoading(true);
 
     try {
+      // Generate a unique email based on name and timestamp
+      const sanitizedName = name.toLowerCase().replace(/\s+/g, '.').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const uniqueEmail = `${sanitizedName}.${Date.now()}@cmms.internal`;
+      const registrationNumber = Date.now().toString().slice(-6);
+
       // Sign up user
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: uniqueEmail,
         password,
         options: {
           emailRedirectTo: window.location.origin,
@@ -61,7 +64,7 @@ export function RegisterForm() {
 
       toast({
         title: "Cadastro realizado",
-        description: "Verifique seu e-mail para confirmar o cadastro",
+        description: "Sua conta foi criada com sucesso!",
       });
 
       navigate("/login");
@@ -101,32 +104,6 @@ export function RegisterForm() {
                 placeholder="João Silva"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
-                className="h-12"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="registration">Matrícula</Label>
-              <Input
-                id="registration"
-                type="text"
-                placeholder="12345"
-                value={registrationNumber}
-                onChange={(e) => setRegistrationNumber(e.target.value)}
-                required
-                className="h-12"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="h-12"
               />
