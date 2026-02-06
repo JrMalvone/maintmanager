@@ -1,7 +1,7 @@
 import type { ServiceOrder } from "@/hooks/useData";
 import { formatElapsedTime, getElapsedClass } from "@/lib/dateUtils";
-import { STATUS_LABELS, PRIORITY_LABELS } from "@/lib/constants";
-import { Clock, AlertTriangle, CheckCircle, Wrench } from "lucide-react";
+import { STATUS_LABELS } from "@/lib/constants";
+import { Clock, AlertTriangle, CheckCircle, Wrench, Zap, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OrderCardProps {
@@ -24,9 +24,18 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span className={`priority-${order.priority}`}>
-            {PRIORITY_LABELS[order.priority]}
-          </span>
+          {/* Maintenance Type Badge */}
+          {order.maintenance_type === "electronic" ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-500 border border-blue-500/50">
+              <Zap className="w-3 h-3" />
+              Elétrico
+            </span>
+          ) : order.maintenance_type === "mechanical" ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-500/20 text-orange-500 border border-orange-500/50">
+              <Settings className="w-3 h-3" />
+              Mecânico
+            </span>
+          ) : null}
           {order.is_machine_stopped && (
             <span className="machine-stopped">
               <AlertTriangle className="w-4 h-4" />
@@ -38,6 +47,14 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           {elapsed}
         </div>
       </div>
+
+      {/* Opener Info */}
+      {order.opener_name && (
+        <p className="text-xs text-muted-foreground mb-2">
+          Aberto por: <span className="font-medium text-foreground">{order.opener_name}</span>
+          {order.opener_registry && <span className="ml-1">({order.opener_registry})</span>}
+        </p>
+      )}
 
       {/* Problem Description */}
       <p className="text-sm line-clamp-2 mb-3">{order.problem_description}</p>

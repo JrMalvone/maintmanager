@@ -29,6 +29,12 @@ interface ServiceOrder {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  // New fields for role-based workflow
+  opener_name: string | null;
+  opener_registry: string | null;
+  technician_name: string | null;
+  technician_registry: string | null;
+  maintenance_type: "electronic" | "mechanical" | null;
 }
 
 export function useSectors() {

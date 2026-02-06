@@ -3,7 +3,7 @@ import { TechnicianDashboard } from "@/components/technician/TechnicianDashboard
 
 export default function OrdersPage() {
   return (
-    <DashboardLayout requiredRoles={["technician", "manager"]}>
+    <DashboardLayout requiredRoles={["manutencao", "gestor"]}>
       <TechnicianDashboard />
     </DashboardLayout>
   );

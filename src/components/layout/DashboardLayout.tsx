@@ -1,16 +1,17 @@
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAppAuth } from "@/hooks/useAppAuth";
+import { AppRole } from "@/lib/auth";
 import { Sidebar } from "./Sidebar";
 import { Loader2 } from "lucide-react";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  requiredRoles?: string[];
+  requiredRoles?: AppRole[];
 }
 
 export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProps) {
-  const { user, role, loading } = useAuth();
+  const { isAuthenticated, role, loading } = useAppAuth();
 
   if (loading) {
     return (
@@ -23,7 +24,7 @@ export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProp
     );
   }
 
-  if (!user) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

@@ -5,6 +5,7 @@ import { KPICards } from "./KPICards";
 import { BacklogChart } from "./BacklogChart";
 import { ParetoChart } from "./ParetoChart";
 import { TechnicianPerformance } from "./TechnicianPerformance";
+import { OrderHistory } from "./OrderHistory";
 import { Loader2 } from "lucide-react";
 
 export function ManagerDashboard() {
@@ -53,6 +54,9 @@ export function ManagerDashboard() {
 
       {/* Technician Performance */}
       <TechnicianPerformance orders={orders} />
+
+      {/* Order History with opener/technician info */}
+      <OrderHistory orders={orders} />
     </div>
   );
 }

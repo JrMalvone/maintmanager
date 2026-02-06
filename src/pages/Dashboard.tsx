@@ -1,10 +1,11 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAppAuth } from "@/hooks/useAppAuth";
+import { getRedirectForRole } from "@/lib/auth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Loader2 } from "lucide-react";
 
 export default function Dashboard() {
-  const { role, loading } = useAuth();
+  const { role, loading } = useAppAuth();
 
   if (loading) {
     return (
@@ -15,12 +16,8 @@ export default function Dashboard() {
   }
 
   // Redirect based on role
-  if (role === "operator") {
-    return <Navigate to="/dashboard/new-order" replace />;
-  } else if (role === "technician") {
-    return <Navigate to="/dashboard/orders" replace />;
-  } else if (role === "manager") {
-    return <Navigate to="/dashboard/analytics" replace />;
+  if (role) {
+    return <Navigate to={getRedirectForRole(role)} replace />;
   }
 
   return (

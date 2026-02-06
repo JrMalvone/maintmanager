@@ -3,7 +3,7 @@ import { ManagerDashboard } from "@/components/manager/ManagerDashboard";
 
 export default function AnalyticsPage() {
   return (
-    <DashboardLayout requiredRoles={["manager"]}>
+    <DashboardLayout requiredRoles={["gestor"]}>
       <ManagerDashboard />
     </DashboardLayout>
   );

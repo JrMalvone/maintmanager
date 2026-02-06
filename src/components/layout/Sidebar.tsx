@@ -1,26 +1,25 @@
 import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAppAuth } from "@/hooks/useAppAuth";
 import { cn } from "@/lib/utils";
+import { AppRole } from "@/lib/auth";
 import {
   Wrench,
   ClipboardPlus,
   ClipboardList,
   BarChart3,
-  Settings,
   LogOut,
   User,
   Menu,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ROLE_LABELS } from "@/lib/constants";
 import { useState } from "react";
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  roles: string[];
+  roles: AppRole[];
 }
 
 const navItems: NavItem[] = [
@@ -28,30 +27,24 @@ const navItems: NavItem[] = [
     label: "Nova Ordem",
     href: "/dashboard/new-order",
     icon: ClipboardPlus,
-    roles: ["operator", "technician", "manager"],
+    roles: ["operador"],
   },
   {
     label: "Ordens de Serviço",
     href: "/dashboard/orders",
     icon: ClipboardList,
-    roles: ["technician", "manager"],
+    roles: ["manutencao", "gestor"],
   },
   {
-    label: "Analytics",
+    label: "Dashboard",
     href: "/dashboard/analytics",
     icon: BarChart3,
-    roles: ["manager"],
-  },
-  {
-    label: "Configurações",
-    href: "/dashboard/settings",
-    icon: Settings,
-    roles: ["manager"],
+    roles: ["gestor"],
   },
 ];
 
 export function Sidebar() {
-  const { profile, role, signOut } = useAuth();
+  const { user, roleDisplayName, role, logout } = useAppAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -101,16 +94,16 @@ export function Sidebar() {
             <User className="w-5 h-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-medium truncate">{profile?.name || "Usuário"}</p>
+            <p className="font-medium truncate">{user || "Usuário"}</p>
             <p className="text-xs text-muted-foreground">
-              {role ? ROLE_LABELS[role] : "Carregando..."}
+              {roleDisplayName || "Carregando..."}
             </p>
           </div>
         </div>
         <Button
           variant="ghost"
           className="w-full justify-start text-muted-foreground hover:text-destructive"
-          onClick={() => signOut()}
+          onClick={() => logout()}
         >
           <LogOut className="w-4 h-4 mr-2" />
           Sair
