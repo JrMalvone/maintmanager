@@ -1,11 +1,11 @@
 import { Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAppAuth } from "@/hooks/useAppAuth";
 import { Loader2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, loading } = useAppAuth();
 
   if (loading) {
     return (
@@ -15,7 +15,7 @@ const Index = () => {
     );
   }
 
-  if (user) {
+  if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -25,7 +25,7 @@ const Index = () => {
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
           <Wrench className="w-10 h-10 text-primary" />
         </div>
-        
+
         <div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
             CMMS Industrial
@@ -38,9 +38,6 @@ const Index = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button asChild size="lg" className="h-12 px-8 btn-industrial">
             <Link to="/login">Entrar</Link>
-          </Button>
-          <Button asChild variant="outline" size="lg" className="h-12 px-8">
-            <Link to="/register">Criar Conta</Link>
           </Button>
         </div>
 

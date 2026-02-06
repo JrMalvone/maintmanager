@@ -1,62 +1,36 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAppAuth } from "@/hooks/useAppAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogIn, Wrench } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-export function LoginForm() {
-  const [name, setName] = useState("");
+export function SimpleLoginForm() {
+  const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { login } = useAppAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      // Find user by name in profiles table
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, email")
-        .ilike("name", name.trim())
-        .maybeSingle();
+    // Small delay for UX
+    await new Promise((r) => setTimeout(r, 300));
 
-      if (profileError) throw profileError;
-      
-      if (!profileData || !profileData.email) {
-        throw new Error("Usuário não encontrado");
-      }
+    const result = login(user, password);
 
-      // Sign in using the stored email
-      const { error } = await supabase.auth.signInWithPassword({
-        email: profileData.email,
-        password,
-      });
-
-      if (error) {
-        throw new Error("Nome ou senha incorretos");
-      }
-
-      toast({
-        title: "Login realizado",
-        description: "Bem-vindo ao sistema CMMS",
-      });
-
-      navigate("/dashboard");
-    } catch (error: any) {
+    if (!result.success) {
       toast({
         title: "Erro no login",
-        description: error.message || "Verifique suas credenciais",
+        description: result.error || "Verifique suas credenciais",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   }
 
   return (
@@ -77,15 +51,16 @@ export function LoginForm() {
         <form onSubmit={handleSubmit} className="industrial-card p-8 space-y-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
+              <Label htmlFor="user">Usuário</Label>
               <Input
-                id="name"
+                id="user"
                 type="text"
-                placeholder="Seu nome completo"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                placeholder="Digite o usuário"
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
                 required
                 className="h-12"
+                autoComplete="username"
               />
             </div>
 
@@ -99,6 +74,7 @@ export function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="h-12"
+                autoComplete="current-password"
               />
             </div>
           </div>
@@ -117,13 +93,6 @@ export function LoginForm() {
               </>
             )}
           </Button>
-
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">Não tem uma conta? </span>
-            <Link to="/register" className="text-primary hover:underline font-medium">
-              Cadastrar
-            </Link>
-          </div>
         </form>
       </div>
     </div>

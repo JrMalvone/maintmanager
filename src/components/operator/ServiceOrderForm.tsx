@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
 import { useSectors, useMachines } from "@/hooks/useData";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -20,38 +20,66 @@ import {
   Send,
   AlertTriangle,
   CheckCircle,
-  QrCode,
+  Zap,
+  Settings,
 } from "lucide-react";
-import { PRIORITY_LABELS, type PriorityLevel } from "@/lib/constants";
+
+type MaintenanceType = "electronic" | "mechanical";
 
 export function ServiceOrderForm() {
-  const { user, profile } = useAuth();
   const { sectors, loading: sectorsLoading } = useSectors();
   const [selectedSector, setSelectedSector] = useState<string>("");
   const { machines, loading: machinesLoading } = useMachines(selectedSector);
-  
+
+  // Operator identification
+  const [openerName, setOpenerName] = useState("");
+  const [openerRegistry, setOpenerRegistry] = useState("");
+
+  // Machine info
   const [machineId, setMachineId] = useState("");
   const [machineCode, setMachineCode] = useState("");
-  const [problemDescription, setProblemDescription] = useState("");
   const [isMachineStopped, setIsMachineStopped] = useState(false);
-  const [priority, setPriority] = useState<PriorityLevel>("medium");
+
+  // Defect info
+  const [maintenanceType, setMaintenanceType] = useState<MaintenanceType>("mechanical");
+  const [problemDescription, setProblemDescription] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
-  
   const { toast } = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) return;
+
+    if (!openerName.trim() || !openerRegistry.trim()) {
+      toast({
+        title: "Identificação obrigatória",
+        description: "Informe seu nome e matrícula",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!machineId) {
+      toast({
+        title: "Máquina obrigatória",
+        description: "Selecione a máquina com defeito",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSubmitting(true);
 
     try {
       const { error } = await supabase.from("service_orders").insert({
-        machine_id: machineId || null,
-        operator_id: user.id,
+        machine_id: machineId,
         problem_description: problemDescription.trim(),
         is_machine_stopped: isMachineStopped,
-        priority,
+        priority: "medium",
+        maintenance_type: maintenanceType,
+        opener_name: openerName.trim(),
+        opener_registry: openerRegistry.trim(),
+        operator_id: "00000000-0000-0000-0000-000000000000", // Placeholder for shared login
       });
 
       if (error) throw error;
@@ -66,8 +94,9 @@ export function ServiceOrderForm() {
       setMachineCode("");
       setProblemDescription("");
       setIsMachineStopped(false);
-      setPriority("medium");
+      setMaintenanceType("mechanical");
       setSelectedSector("");
+      // Keep operator info for convenience
     } catch (error: any) {
       toast({
         title: "Erro ao criar ordem",
@@ -81,7 +110,7 @@ export function ServiceOrderForm() {
 
   function handleMachineSelect(id: string) {
     setMachineId(id);
-    const machine = machines.find(m => m.id === id);
+    const machine = machines.find((m) => m.id === id);
     if (machine) setMachineCode(machine.code);
   }
 
@@ -95,22 +124,34 @@ export function ServiceOrderForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Operator Info */}
+        {/* Operator Identification */}
         <div className="industrial-card p-6 space-y-4">
           <h2 className="font-semibold text-lg border-b border-border pb-2">
-            Dados do Operador
+            Identificação do Operador
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Nome</Label>
-              <Input value={profile?.name || ""} disabled className="bg-muted" />
+              <Label htmlFor="openerName">Nome do Operador *</Label>
+              <Input
+                id="openerName"
+                type="text"
+                placeholder="Seu nome completo"
+                value={openerName}
+                onChange={(e) => setOpenerName(e.target.value)}
+                required
+                className="h-12"
+              />
             </div>
             <div className="space-y-2">
-              <Label>Matrícula</Label>
+              <Label htmlFor="openerRegistry">Matrícula *</Label>
               <Input
-                value={profile?.registration_number || ""}
-                disabled
-                className="bg-muted"
+                id="openerRegistry"
+                type="text"
+                placeholder="Número da matrícula"
+                value={openerRegistry}
+                onChange={(e) => setOpenerRegistry(e.target.value)}
+                required
+                className="h-12"
               />
             </div>
           </div>
@@ -144,100 +185,110 @@ export function ServiceOrderForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="machine">Máquina</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={machineId}
-                  onValueChange={handleMachineSelect}
-                  disabled={!selectedSector || machinesLoading}
-                >
-                  <SelectTrigger className="h-12 flex-1">
-                    <SelectValue placeholder="Selecione a máquina" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {machines.map((machine) => (
-                      <SelectItem key={machine.id} value={machine.id}>
-                        {machine.code} - {machine.model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-12 w-12"
-                  title="Escanear QR Code"
-                >
-                  <QrCode className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {machineCode && (
-            <p className="text-sm text-muted-foreground">
-              Código selecionado: <span className="font-mono font-bold text-foreground">{machineCode}</span>
-            </p>
-          )}
-        </div>
-
-        {/* Problem Details */}
-        <div className="industrial-card p-6 space-y-4">
-          <h2 className="font-semibold text-lg border-b border-border pb-2">
-            Detalhes do Problema
-          </h2>
-
-          <div className="space-y-2">
-            <Label htmlFor="problem">Descrição do Problema</Label>
-            <Textarea
-              id="problem"
-              placeholder="Descreva o problema encontrado na máquina..."
-              value={problemDescription}
-              onChange={(e) => setProblemDescription(e.target.value)}
-              required
-              className="min-h-[120px] resize-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Machine Status */}
-            <div className="space-y-3">
-              <Label>Status da Máquina</Label>
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/50">
-                <div className="flex items-center gap-3">
-                  {isMachineStopped ? (
-                    <AlertTriangle className="w-5 h-5 text-status-stopped" />
-                  ) : (
-                    <CheckCircle className="w-5 h-5 text-status-running" />
-                  )}
-                  <span className={isMachineStopped ? "machine-stopped" : "machine-running"}>
-                    {isMachineStopped ? "Parada" : "Em Operação"}
-                  </span>
-                </div>
-                <Switch
-                  checked={isMachineStopped}
-                  onCheckedChange={setIsMachineStopped}
-                />
-              </div>
-            </div>
-
-            {/* Priority */}
-            <div className="space-y-3">
-              <Label>Prioridade</Label>
-              <Select value={priority} onValueChange={(v) => setPriority(v as PriorityLevel)}>
+              <Label htmlFor="machine">Máquina *</Label>
+              <Select
+                value={machineId}
+                onValueChange={handleMachineSelect}
+                disabled={!selectedSector || machinesLoading}
+              >
                 <SelectTrigger className="h-12">
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione a máquina" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(PRIORITY_LABELS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      <span className={`priority-${key}`}>{label}</span>
+                  {machines.map((machine) => (
+                    <SelectItem key={machine.id} value={machine.id}>
+                      {machine.code} - {machine.model}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {machineCode && (
+            <p className="text-sm text-muted-foreground">
+              Código selecionado:{" "}
+              <span className="font-mono font-bold text-foreground">{machineCode}</span>
+            </p>
+          )}
+
+          {/* Machine Status */}
+          <div className="space-y-3">
+            <Label>Status da Máquina</Label>
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/50">
+              <div className="flex items-center gap-3">
+                {isMachineStopped ? (
+                  <AlertTriangle className="w-5 h-5 text-status-stopped" />
+                ) : (
+                  <CheckCircle className="w-5 h-5 text-status-running" />
+                )}
+                <span className={isMachineStopped ? "machine-stopped" : "machine-running"}>
+                  {isMachineStopped ? "Parada" : "Em Operação"}
+                </span>
+              </div>
+              <Switch
+                checked={isMachineStopped}
+                onCheckedChange={setIsMachineStopped}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Defect Category */}
+        <div className="industrial-card p-6 space-y-4">
+          <h2 className="font-semibold text-lg border-b border-border pb-2">
+            Categoria do Defeito
+          </h2>
+
+          <RadioGroup
+            value={maintenanceType}
+            onValueChange={(v) => setMaintenanceType(v as MaintenanceType)}
+            className="grid grid-cols-2 gap-4"
+          >
+            <Label
+              htmlFor="electronic"
+              className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                maintenanceType === "electronic"
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-border hover:border-blue-500/50"
+              }`}
+            >
+              <RadioGroupItem value="electronic" id="electronic" />
+              <Zap className="w-5 h-5 text-blue-500" />
+              <span className="font-medium">Elétrico</span>
+            </Label>
+
+            <Label
+              htmlFor="mechanical"
+              className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                maintenanceType === "mechanical"
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "border-border hover:border-orange-500/50"
+              }`}
+            >
+              <RadioGroupItem value="mechanical" id="mechanical" />
+              <Settings className="w-5 h-5 text-orange-500" />
+              <span className="font-medium">Mecânico</span>
+            </Label>
+          </RadioGroup>
+        </div>
+
+        {/* Problem Description */}
+        <div className="industrial-card p-6 space-y-4">
+          <h2 className="font-semibold text-lg border-b border-border pb-2">
+            Descrição do Problema
+          </h2>
+
+          <div className="space-y-2">
+            <Label htmlFor="problem">Descreva o defeito *</Label>
+            <Textarea
+              id="problem"
+              placeholder="Descreva detalhadamente o problema encontrado na máquina..."
+              value={problemDescription}
+              onChange={(e) => setProblemDescription(e.target.value)}
+              required
+              className="min-h-[120px] resize-none"
+            />
           </div>
         </div>
 
@@ -245,7 +296,7 @@ export function ServiceOrderForm() {
         <Button
           type="submit"
           className="w-full h-14 text-lg btn-industrial"
-          disabled={submitting || !machineId || !problemDescription.trim()}
+          disabled={submitting || !machineId || !problemDescription.trim() || !openerName.trim() || !openerRegistry.trim()}
         >
           {submitting ? (
             <Loader2 className="w-6 h-6 animate-spin" />

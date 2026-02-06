@@ -1,69 +1,54 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
 import { differenceInMinutes } from "date-fns";
-import { User, Clock, CheckCircle } from "lucide-react";
+import { User, Clock, CheckCircle, Wrench } from "lucide-react";
 
 interface TechnicianPerformanceProps {
   orders: ServiceOrder[];
 }
 
 interface TechnicianStats {
-  id: string;
   name: string;
+  registry: string | null;
   closedCount: number;
   avgTime: number;
 }
 
-interface Profile {
-  id: string;
-  name: string;
-}
-
 export function TechnicianPerformance({ orders }: TechnicianPerformanceProps) {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchProfiles() {
-      const { data } = await supabase.from("profiles").select("id, name");
-      if (data) setProfiles(data);
-      setLoading(false);
-    }
-    fetchProfiles();
-  }, []);
-
-  // Calculate stats per technician
+  // Calculate stats per technician using technician_name field
   const closedOrders = orders.filter(
-    (o) => o.status === "closed" && o.technician_id && o.started_at && o.finished_at
+    (o) => o.status === "closed" && o.technician_name && o.started_at && o.finished_at
   );
 
-  const technicianStats: TechnicianStats[] = [];
-  const techIds = [...new Set(closedOrders.map((o) => o.technician_id))];
+  // Group by technician name
+  const technicianMap = new Map<string, TechnicianStats>();
 
-  techIds.forEach((techId) => {
-    if (!techId) return;
-    
-    const techOrders = closedOrders.filter((o) => o.technician_id === techId);
-    const profile = profiles.find((p) => p.id === techId);
-    
-    const totalTime = techOrders.reduce((acc, order) => {
-      return acc + differenceInMinutes(
-        new Date(order.finished_at!),
-        new Date(order.started_at!)
+  closedOrders.forEach((order) => {
+    const name = order.technician_name!;
+    const existing = technicianMap.get(name);
+
+    const repairTime = differenceInMinutes(
+      new Date(order.finished_at!),
+      new Date(order.started_at!)
+    );
+
+    if (existing) {
+      existing.closedCount += 1;
+      existing.avgTime = Math.round(
+        (existing.avgTime * (existing.closedCount - 1) + repairTime) / existing.closedCount
       );
-    }, 0);
-
-    technicianStats.push({
-      id: techId,
-      name: profile?.name || "Desconhecido",
-      closedCount: techOrders.length,
-      avgTime: Math.round(totalTime / techOrders.length),
-    });
+    } else {
+      technicianMap.set(name, {
+        name,
+        registry: order.technician_registry,
+        closedCount: 1,
+        avgTime: repairTime,
+      });
+    }
   });
 
-  // Sort by closed count
-  technicianStats.sort((a, b) => b.closedCount - a.closedCount);
+  const technicianStats = Array.from(technicianMap.values()).sort(
+    (a, b) => b.closedCount - a.closedCount
+  );
 
   if (technicianStats.length === 0) {
     return null;
@@ -90,7 +75,7 @@ export function TechnicianPerformance({ orders }: TechnicianPerformanceProps) {
           <tbody>
             {technicianStats.map((tech, index) => (
               <tr
-                key={tech.id}
+                key={tech.name}
                 className="border-b border-border/50 hover:bg-muted/50 transition-colors"
               >
                 <td className="py-3 px-4">
@@ -98,7 +83,12 @@ export function TechnicianPerformance({ orders }: TechnicianPerformanceProps) {
                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                       <User className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="font-medium">{tech.name}</span>
+                    <div>
+                      <span className="font-medium">{tech.name}</span>
+                      {tech.registry && (
+                        <p className="text-xs text-muted-foreground">{tech.registry}</p>
+                      )}
+                    </div>
                     {index === 0 && (
                       <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded">
                         Top

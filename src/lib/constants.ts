@@ -3,13 +3,6 @@
 export const APP_NAME = "CMMS Industrial";
 export const APP_DESCRIPTION = "Sistema de Gestão de Manutenção Industrial";
 
-// Role labels in Portuguese
-export const ROLE_LABELS = {
-  operator: "Operador",
-  technician: "Manutentor",
-  manager: "Gestor",
-} as const;
-
 // Status labels in Portuguese
 export const STATUS_LABELS = {
   open: "Aberta",
@@ -30,6 +23,12 @@ export const MACHINE_STATUS_LABELS = {
   running: "Em Operação",
 } as const;
 
-export type UserRole = keyof typeof ROLE_LABELS;
+// Maintenance type labels
+export const MAINTENANCE_TYPE_LABELS = {
+  electronic: "Elétrico",
+  mechanical: "Mecânico",
+} as const;
+
 export type OrderStatus = keyof typeof STATUS_LABELS;
 export type PriorityLevel = keyof typeof PRIORITY_LABELS;
+export type MaintenanceType = keyof typeof MAINTENANCE_TYPE_LABELS;

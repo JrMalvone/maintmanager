@@ -104,6 +104,9 @@ export type Database = {
           id: string
           is_machine_stopped: boolean
           machine_id: string | null
+          maintenance_type: string | null
+          opener_name: string | null
+          opener_registry: string | null
           operator_id: string
           priority: Database["public"]["Enums"]["priority_level"]
           problem_description: string
@@ -112,6 +115,8 @@ export type Database = {
           started_at: string | null
           status: Database["public"]["Enums"]["order_status"]
           technician_id: string | null
+          technician_name: string | null
+          technician_registry: string | null
         }
         Insert: {
           created_at?: string
@@ -119,6 +124,9 @@ export type Database = {
           id?: string
           is_machine_stopped?: boolean
           machine_id?: string | null
+          maintenance_type?: string | null
+          opener_name?: string | null
+          opener_registry?: string | null
           operator_id: string
           priority?: Database["public"]["Enums"]["priority_level"]
           problem_description: string
@@ -127,6 +135,8 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           technician_id?: string | null
+          technician_name?: string | null
+          technician_registry?: string | null
         }
         Update: {
           created_at?: string
@@ -134,6 +144,9 @@ export type Database = {
           id?: string
           is_machine_stopped?: boolean
           machine_id?: string | null
+          maintenance_type?: string | null
+          opener_name?: string | null
+          opener_registry?: string | null
           operator_id?: string
           priority?: Database["public"]["Enums"]["priority_level"]
           problem_description?: string
@@ -142,6 +155,8 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           technician_id?: string | null
+          technician_name?: string | null
+          technician_registry?: string | null
         }
         Relationships: [
           {
