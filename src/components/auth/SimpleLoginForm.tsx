@@ -17,10 +17,7 @@ export function SimpleLoginForm() {
     e.preventDefault();
     setLoading(true);
 
-    // Small delay for UX
-    await new Promise((r) => setTimeout(r, 300));
-
-    const result = login(user, password);
+    const result = await login(user, password);
 
     if (!result.success) {
       toast({

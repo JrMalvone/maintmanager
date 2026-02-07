@@ -5,6 +5,7 @@ import {
   authenticate as authLogin, 
   getAuthState, 
   logout as authLogout,
+  validateSession,
   getRedirectForRole,
   ROLE_DISPLAY_NAMES 
 } from "@/lib/auth";
@@ -15,7 +16,7 @@ interface AppAuthContextType {
   user: string | null;
   roleDisplayName: string | null;
   loading: boolean;
-  login: (user: string, password: string) => { success: boolean; error?: string };
+  login: (user: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -30,15 +31,28 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for existing auth state on mount
-    const authState = getAuthState();
-    setIsAuthenticated(authState.isAuthenticated);
-    setRole(authState.role);
-    setUser(authState.user);
-    setLoading(false);
+    const initAuth = async () => {
+      // First check local cache for faster UI rendering
+      const cachedState = getAuthState();
+      if (cachedState.isAuthenticated) {
+        setIsAuthenticated(cachedState.isAuthenticated);
+        setRole(cachedState.role);
+        setUser(cachedState.user);
+      }
+      
+      // Then validate with server
+      const validatedState = await validateSession();
+      setIsAuthenticated(validatedState.isAuthenticated);
+      setRole(validatedState.role);
+      setUser(validatedState.user);
+      setLoading(false);
+    };
+    
+    initAuth();
   }, []);
 
-  function login(username: string, password: string): { success: boolean; error?: string } {
-    const result = authLogin(username, password);
+  async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+    const result = await authLogin(username, password);
     
     if (result.success && result.role) {
       setIsAuthenticated(true);
@@ -51,8 +65,8 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     return { success: false, error: result.error };
   }
 
-  function logout() {
-    authLogout();
+  async function logout() {
+    await authLogout();
     setIsAuthenticated(false);
     setRole(null);
     setUser(null);
