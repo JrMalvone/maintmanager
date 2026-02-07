@@ -1,7 +1,7 @@
 import type { ServiceOrder } from "@/hooks/useData";
 import { formatElapsedTime, getElapsedClass } from "@/lib/dateUtils";
 import { STATUS_LABELS } from "@/lib/constants";
-import { Clock, AlertTriangle, CheckCircle, Wrench, Zap, Settings } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, Wrench, Zap, Settings, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OrderCardProps {
@@ -54,6 +54,17 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           Aberto por: <span className="font-medium text-foreground">{order.opener_name}</span>
           {order.opener_registry && <span className="ml-1">({order.opener_registry})</span>}
         </p>
+      )}
+
+      {/* Technician Info for In Progress orders */}
+      {order.status === "in_progress" && order.technician_name && (
+        <div className="flex items-center gap-2 mb-2 px-2 py-1 rounded bg-status-progress/10 border border-status-progress/30">
+          <User className="w-3.5 h-3.5 text-status-progress" />
+          <p className="text-xs text-status-progress font-medium">
+            Em atendimento: {order.technician_name}
+            {order.technician_registry && <span className="ml-1 opacity-75">({order.technician_registry})</span>}
+          </p>
+        </div>
       )}
 
       {/* Problem Description */}
