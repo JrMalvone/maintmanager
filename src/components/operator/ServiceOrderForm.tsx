@@ -79,7 +79,6 @@ export function ServiceOrderForm() {
         maintenance_type: maintenanceType,
         opener_name: openerName.trim(),
         opener_registry: openerRegistry.trim(),
-        operator_id: "00000000-0000-0000-0000-000000000000", // Placeholder for shared login
       });
 
       if (error) throw error;

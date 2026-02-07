@@ -107,7 +107,7 @@ export type Database = {
           maintenance_type: string | null
           opener_name: string | null
           opener_registry: string | null
-          operator_id: string
+          operator_id: string | null
           priority: Database["public"]["Enums"]["priority_level"]
           problem_description: string
           solution_description: string | null
@@ -127,7 +127,7 @@ export type Database = {
           maintenance_type?: string | null
           opener_name?: string | null
           opener_registry?: string | null
-          operator_id: string
+          operator_id?: string | null
           priority?: Database["public"]["Enums"]["priority_level"]
           problem_description: string
           solution_description?: string | null
@@ -147,7 +147,7 @@ export type Database = {
           maintenance_type?: string | null
           opener_name?: string | null
           opener_registry?: string | null
-          operator_id?: string
+          operator_id?: string | null
           priority?: Database["public"]["Enums"]["priority_level"]
           problem_description?: string
           solution_description?: string | null

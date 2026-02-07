@@ -27,7 +27,7 @@ const navItems: NavItem[] = [
     label: "Nova Ordem",
     href: "/dashboard/new-order",
     icon: ClipboardPlus,
-    roles: ["operador"],
+    roles: ["operador", "manutencao", "gestor"],
   },
   {
     label: "Ordens de Serviço",
