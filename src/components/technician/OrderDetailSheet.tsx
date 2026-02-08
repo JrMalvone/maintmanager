@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder, Machine } from "@/hooks/useData";
+import { useWorkLogs, getActiveTechnicians } from "@/hooks/useWorkLogs";
 import { formatDateTime, calculateDuration } from "@/lib/dateUtils";
 import { STATUS_LABELS } from "@/lib/constants";
+import { ActiveTeamPanel } from "./ActiveTeamPanel";
+import { WorkLogHistory } from "./WorkLogHistory";
 import {
   Sheet,
   SheetContent,
@@ -24,6 +27,17 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Loader2,
   Play,
   CheckCircle,
@@ -36,7 +50,9 @@ import {
   Settings,
   Pencil,
   User,
+  UserPlus,
 } from "lucide-react";
+import { differenceInMinutes } from "date-fns";
 
 interface OrderDetailSheetProps {
   order: ServiceOrder | null;
@@ -60,7 +76,11 @@ export function OrderDetailSheet({
   const [spareParts, setSpareParts] = useState<string[]>([]);
   const [newPart, setNewPart] = useState("");
 
-  // Start service modal
+  // Work logs for this order
+  const { workLogs, loading: workLogsLoading } = useWorkLogs(order?.id);
+  const activeTechnicians = getActiveTechnicians(workLogs);
+
+  // Start work modal (check-in)
   const [startModalOpen, setStartModalOpen] = useState(false);
   const [technicianName, setTechnicianName] = useState("");
   const [technicianRegistry, setTechnicianRegistry] = useState("");
@@ -90,7 +110,7 @@ export function OrderDetailSheet({
     if (data) setMachine(data);
   }
 
-  async function startMaintenance() {
+  async function startWork() {
     if (!order) return;
     if (!technicianName.trim() || !technicianRegistry.trim()) {
       toast({
@@ -104,28 +124,43 @@ export function OrderDetailSheet({
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from("service_orders")
-        .update({
-          status: "in_progress",
-          technician_name: technicianName.trim(),
-          technician_registry: technicianRegistry.trim(),
-          started_at: new Date().toISOString(),
-        })
-        .eq("id", order.id);
+      const now = new Date().toISOString();
 
-      if (error) throw error;
+      // Add work log entry for this technician
+      const { error: workLogError } = await supabase.from("work_logs").insert({
+        order_id: order.id,
+        technician_name: technicianName.trim(),
+        technician_registry: technicianRegistry.trim(),
+        started_at: now,
+      });
+
+      if (workLogError) throw workLogError;
+
+      // If this is the first technician, update order status to in_progress
+      if (order.status === "open") {
+        const { error: orderError } = await supabase
+          .from("service_orders")
+          .update({
+            status: "in_progress",
+            started_at: now,
+            // Keep the first technician's name/registry on the order for backwards compatibility
+            technician_name: technicianName.trim(),
+            technician_registry: technicianRegistry.trim(),
+          })
+          .eq("id", order.id);
+
+        if (orderError) throw orderError;
+      }
 
       toast({
-        title: "Manutenção Iniciada",
-        description: "O serviço foi iniciado com sucesso",
+        title: "Trabalho Iniciado",
+        description: `${technicianName} entrou na equipe`,
       });
 
       setStartModalOpen(false);
       setTechnicianName("");
       setTechnicianRegistry("");
       onUpdate();
-      onOpenChange(false);
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -183,13 +218,28 @@ export function OrderDetailSheet({
     setLoading(true);
 
     try {
+      const now = new Date();
+
+      // Auto-stop all active technicians
+      for (const log of activeTechnicians) {
+        const durationMinutes = differenceInMinutes(now, new Date(log.started_at));
+        await supabase
+          .from("work_logs")
+          .update({
+            ended_at: now.toISOString(),
+            duration_minutes: durationMinutes,
+          })
+          .eq("id", log.id);
+      }
+
+      // Close the order
       const { error } = await supabase
         .from("service_orders")
         .update({
           status: "closed",
           solution_description: solutionDescription.trim(),
           spare_parts_used: spareParts.length > 0 ? spareParts : null,
-          finished_at: new Date().toISOString(),
+          finished_at: now.toISOString(),
         })
         .eq("id", order.id);
 
@@ -226,7 +276,24 @@ export function OrderDetailSheet({
     setSpareParts(spareParts.filter((_, i) => i !== index));
   }
 
+  // Refetch work logs when updated
+  function handleWorkLogUpdate() {
+    onUpdate();
+  }
+
   if (!order) return null;
+
+  // Calculate total man-hours from work logs
+  const totalManMinutes = workLogs
+    .filter((log) => log.duration_minutes !== null)
+    .reduce((acc, log) => acc + (log.duration_minutes || 0), 0);
+
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
 
   return (
     <>
@@ -411,35 +478,54 @@ export function OrderDetailSheet({
               )}
               {order.started_at && order.finished_at && (
                 <div>
-                  <Label className="text-muted-foreground text-xs">Duração</Label>
+                  <Label className="text-muted-foreground text-xs">Tempo Máquina Parada</Label>
                   <p className="flex items-center gap-1 mt-1 font-bold">
                     <Wrench className="w-4 h-4" />
                     {calculateDuration(order.started_at, order.finished_at)}
                   </p>
                 </div>
               )}
+              {totalManMinutes > 0 && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Homem-Hora Total</Label>
+                  <p className="flex items-center gap-1 mt-1 font-bold text-primary">
+                    <User className="w-4 h-4" />
+                    {formatDuration(totalManMinutes)}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Technician Info (if started) */}
-            {order.technician_name && (
+            {/* Active Team Panel (for open or in_progress orders) */}
+            {(order.status === "open" || order.status === "in_progress") && (
               <>
                 <Separator />
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Técnico Responsável</Label>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-status-progress/20 flex items-center justify-center">
-                      <Wrench className="w-5 h-5 text-status-progress" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{order.technician_name}</p>
-                      {order.technician_registry && (
-                        <p className="text-sm text-muted-foreground">
-                          Matrícula: {order.technician_registry}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                <div className="space-y-4">
+                  <ActiveTeamPanel
+                    workLogs={workLogs}
+                    orderId={order.id}
+                    onUpdate={handleWorkLogUpdate}
+                  />
+
+                  {/* Join Team Button */}
+                  <Button
+                    onClick={() => setStartModalOpen(true)}
+                    variant="outline"
+                    className="w-full h-12 border-status-progress text-status-progress hover:bg-status-progress hover:text-white"
+                    disabled={loading}
+                  >
+                    <UserPlus className="w-5 h-5 mr-2" />
+                    {order.status === "open" ? "Iniciar Trabalho" : "Entrar na Equipe"}
+                  </Button>
                 </div>
+              </>
+            )}
+
+            {/* Work Log History */}
+            {workLogs.length > 0 && (
+              <>
+                <Separator />
+                <WorkLogHistory workLogs={workLogs} />
               </>
             )}
 
@@ -464,21 +550,7 @@ export function OrderDetailSheet({
               </>
             )}
 
-            {/* Actions */}
-            {order.status === "open" && (
-              <>
-                <Separator />
-                <Button
-                  onClick={() => setStartModalOpen(true)}
-                  className="w-full h-12 btn-industrial"
-                  disabled={loading}
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  Iniciar Manutenção
-                </Button>
-              </>
-            )}
-
+            {/* Close Order Actions (for in_progress orders) */}
             {order.status === "in_progress" && (
               <>
                 <Separator />
@@ -524,20 +596,56 @@ export function OrderDetailSheet({
                     )}
                   </div>
 
-                  <Button
-                    onClick={closeOrder}
-                    className="w-full h-12 btn-industrial bg-status-closed hover:bg-status-closed/90"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <>
-                        <CheckCircle className="w-5 h-5 mr-2" />
-                        Fechar Ordem
-                      </>
-                    )}
-                  </Button>
+                  {activeTechnicians.length > 0 ? (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          className="w-full h-12 btn-industrial bg-status-closed hover:bg-status-closed/90"
+                          disabled={loading || !solutionDescription.trim()}
+                        >
+                          {loading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <>
+                              <CheckCircle className="w-5 h-5 mr-2" />
+                              Fechar Ordem
+                            </>
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Fechar Ordem de Serviço</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Existem {activeTechnicians.length} técnico(s) ainda ativos.
+                            Ao fechar a ordem, o trabalho de todos será encerrado
+                            automaticamente.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={closeOrder}>
+                            Confirmar Fechamento
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  ) : (
+                    <Button
+                      onClick={closeOrder}
+                      className="w-full h-12 btn-industrial bg-status-closed hover:bg-status-closed/90"
+                      disabled={loading || !solutionDescription.trim()}
+                    >
+                      {loading ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="w-5 h-5 mr-2" />
+                          Fechar Ordem
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </>
             )}
@@ -578,13 +686,13 @@ export function OrderDetailSheet({
             <Button variant="outline" onClick={() => setStartModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={startMaintenance} disabled={loading} className="btn-industrial">
+            <Button onClick={startWork} disabled={loading} className="btn-industrial">
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
                   <Play className="w-4 h-4 mr-2" />
-                  Iniciar Manutenção
+                  {order?.status === "open" ? "Iniciar Trabalho" : "Entrar na Equipe"}
                 </>
               )}
             </Button>

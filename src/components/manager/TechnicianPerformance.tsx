@@ -1,58 +1,55 @@
-import type { ServiceOrder } from "@/hooks/useData";
-import { differenceInMinutes } from "date-fns";
-import { User, Clock, CheckCircle, Wrench } from "lucide-react";
+import type { WorkLog } from "@/hooks/useWorkLogs";
+import { User, Clock, CheckCircle } from "lucide-react";
 
 interface TechnicianPerformanceProps {
-  orders: ServiceOrder[];
+  workLogs: WorkLog[];
 }
 
 interface TechnicianStats {
   name: string;
   registry: string | null;
-  closedCount: number;
-  avgTime: number;
+  sessionCount: number;
+  totalMinutes: number;
 }
 
-export function TechnicianPerformance({ orders }: TechnicianPerformanceProps) {
-  // Calculate stats per technician using technician_name field
-  const closedOrders = orders.filter(
-    (o) => o.status === "closed" && o.technician_name && o.started_at && o.finished_at
-  );
+export function TechnicianPerformance({ workLogs }: TechnicianPerformanceProps) {
+  // Calculate stats per technician from work_logs
+  const completedLogs = workLogs.filter((log) => log.duration_minutes !== null);
 
   // Group by technician name
   const technicianMap = new Map<string, TechnicianStats>();
 
-  closedOrders.forEach((order) => {
-    const name = order.technician_name!;
+  completedLogs.forEach((log) => {
+    const name = log.technician_name;
     const existing = technicianMap.get(name);
 
-    const repairTime = differenceInMinutes(
-      new Date(order.finished_at!),
-      new Date(order.started_at!)
-    );
-
     if (existing) {
-      existing.closedCount += 1;
-      existing.avgTime = Math.round(
-        (existing.avgTime * (existing.closedCount - 1) + repairTime) / existing.closedCount
-      );
+      existing.sessionCount += 1;
+      existing.totalMinutes += log.duration_minutes || 0;
     } else {
       technicianMap.set(name, {
         name,
-        registry: order.technician_registry,
-        closedCount: 1,
-        avgTime: repairTime,
+        registry: log.technician_registry,
+        sessionCount: 1,
+        totalMinutes: log.duration_minutes || 0,
       });
     }
   });
 
   const technicianStats = Array.from(technicianMap.values()).sort(
-    (a, b) => b.closedCount - a.closedCount
+    (a, b) => b.totalMinutes - a.totalMinutes
   );
 
   if (technicianStats.length === 0) {
     return null;
   }
+
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
 
   return (
     <div className="industrial-card p-6">
@@ -65,10 +62,10 @@ export function TechnicianPerformance({ orders }: TechnicianPerformanceProps) {
                 Técnico
               </th>
               <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">
-                Ordens Fechadas
+                Sessões de Trabalho
               </th>
               <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">
-                Tempo Médio
+                Tempo Total Trabalhado
               </th>
             </tr>
           </thead>
@@ -99,17 +96,13 @@ export function TechnicianPerformance({ orders }: TechnicianPerformanceProps) {
                 <td className="py-3 px-4 text-center">
                   <div className="flex items-center justify-center gap-1">
                     <CheckCircle className="w-4 h-4 text-status-closed" />
-                    <span className="font-bold">{tech.closedCount}</span>
+                    <span className="font-bold">{tech.sessionCount}</span>
                   </div>
                 </td>
                 <td className="py-3 px-4 text-center">
                   <div className="flex items-center justify-center gap-1">
                     <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span>
-                      {tech.avgTime < 60
-                        ? `${tech.avgTime} min`
-                        : `${Math.floor(tech.avgTime / 60)}h ${tech.avgTime % 60}m`}
-                    </span>
+                    <span className="font-bold">{formatDuration(tech.totalMinutes)}</span>
                   </div>
                 </td>
               </tr>

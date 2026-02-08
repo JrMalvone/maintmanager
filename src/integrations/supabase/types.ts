@@ -186,6 +186,47 @@ export type Database = {
         }
         Relationships: []
       }
+      work_logs: {
+        Row: {
+          created_at: string
+          duration_minutes: number | null
+          ended_at: string | null
+          id: string
+          order_id: string
+          started_at: string
+          technician_name: string
+          technician_registry: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          order_id: string
+          started_at?: string
+          technician_name: string
+          technician_registry?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          order_id?: string
+          started_at?: string
+          technician_name?: string
+          technician_registry?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

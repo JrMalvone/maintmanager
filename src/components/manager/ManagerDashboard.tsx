@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
+import type { WorkLog } from "@/hooks/useWorkLogs";
 import { KPICards } from "./KPICards";
 import { BacklogChart } from "./BacklogChart";
 import { ParetoChart } from "./ParetoChart";
@@ -10,19 +11,27 @@ import { Loader2 } from "lucide-react";
 
 export function ManagerDashboard() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchOrders();
+    fetchData();
   }, []);
 
-  async function fetchOrders() {
-    const { data } = await supabase
-      .from("service_orders")
-      .select("*")
-      .order("created_at", { ascending: false });
+  async function fetchData() {
+    const [ordersRes, workLogsRes] = await Promise.all([
+      supabase
+        .from("service_orders")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("work_logs")
+        .select("*")
+        .order("started_at", { ascending: false }),
+    ]);
 
-    if (data) setOrders(data as ServiceOrder[]);
+    if (ordersRes.data) setOrders(ordersRes.data as ServiceOrder[]);
+    if (workLogsRes.data) setWorkLogs(workLogsRes.data as WorkLog[]);
     setLoading(false);
   }
 
@@ -44,7 +53,7 @@ export function ManagerDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <KPICards orders={orders} />
+      <KPICards orders={orders} workLogs={workLogs} />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -53,7 +62,7 @@ export function ManagerDashboard() {
       </div>
 
       {/* Technician Performance */}
-      <TechnicianPerformance orders={orders} />
+      <TechnicianPerformance workLogs={workLogs} />
 
       {/* Order History with opener/technician info */}
       <OrderHistory orders={orders} />
