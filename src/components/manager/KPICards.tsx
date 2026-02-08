@@ -1,4 +1,5 @@
 import type { ServiceOrder } from "@/hooks/useData";
+import type { WorkLog } from "@/hooks/useWorkLogs";
 import { differenceInMinutes } from "date-fns";
 import {
   Clock,
@@ -6,14 +7,17 @@ import {
   AlertTriangle,
   CheckCircle,
   Wrench,
+  Users,
 } from "lucide-react";
 
 interface KPICardsProps {
   orders: ServiceOrder[];
+  workLogs: WorkLog[];
 }
 
-export function KPICards({ orders }: KPICardsProps) {
-  // Calculate MTTR (Mean Time To Repair)
+export function KPICards({ orders, workLogs }: KPICardsProps) {
+  // Calculate MTTR (Mean Time To Repair) - Machine Downtime
+  // MTTR = (first started_at to finished_at)
   const closedOrders = orders.filter(
     (o) => o.status === "closed" && o.started_at && o.finished_at
   );
@@ -32,6 +36,13 @@ export function KPICards({ orders }: KPICardsProps) {
   const mttrFormatted = mttr < 60 
     ? `${mttr} min` 
     : `${Math.floor(mttr / 60)}h ${mttr % 60}m`;
+
+  // Calculate total Man-Hours from work_logs
+  const totalManMinutes = workLogs
+    .filter((log) => log.duration_minutes !== null)
+    .reduce((acc, log) => acc + (log.duration_minutes || 0), 0);
+  
+  const totalManHours = Math.round(totalManMinutes / 60 * 10) / 10; // 1 decimal place
 
   // Count by status
   const openCount = orders.filter((o) => o.status === "open").length;
@@ -54,7 +65,7 @@ export function KPICards({ orders }: KPICardsProps) {
   ).length;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       {/* MTTR */}
       <div className="kpi-card">
         <div className="flex items-center justify-between mb-2">
@@ -63,6 +74,16 @@ export function KPICards({ orders }: KPICardsProps) {
         </div>
         <p className="kpi-value text-primary">{mttrFormatted}</p>
         <p className="kpi-label">MTTR</p>
+      </div>
+
+      {/* Man-Hours */}
+      <div className="kpi-card">
+        <div className="flex items-center justify-between mb-2">
+          <Users className="w-5 h-5 text-primary" />
+          <span className="text-xs text-muted-foreground">Total</span>
+        </div>
+        <p className="kpi-value text-primary">{totalManHours}h</p>
+        <p className="kpi-label">Homem-Hora</p>
       </div>
 
       {/* Open Orders */}
