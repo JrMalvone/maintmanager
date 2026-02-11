@@ -57,7 +57,7 @@ export function useSectors() {
   return { sectors, loading };
 }
 
-export function useMachines(sectorId?: string) {
+export function useMachines(sectorId?: string, activeOnly = true) {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -69,12 +69,16 @@ export function useMachines(sectorId?: string) {
         query = query.eq("sector_id", sectorId);
       }
 
+      if (activeOnly) {
+        query = query.eq("status", "active");
+      }
+
       const { data } = await query;
       if (data) setMachines(data);
       setLoading(false);
     }
     fetchMachines();
-  }, [sectorId]);
+  }, [sectorId, activeOnly]);
 
   return { machines, loading };
 }
