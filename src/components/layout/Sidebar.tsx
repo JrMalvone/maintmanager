@@ -7,6 +7,7 @@ import {
   ClipboardPlus,
   ClipboardList,
   BarChart3,
+  Settings,
   LogOut,
   User,
   Menu,
@@ -39,6 +40,12 @@ const navItems: NavItem[] = [
     label: "Dashboard",
     href: "/dashboard/analytics",
     icon: BarChart3,
+    roles: ["gestor"],
+  },
+  {
+    label: "Configurações",
+    href: "/dashboard/settings",
+    icon: Settings,
     roles: ["gestor"],
   },
 ];

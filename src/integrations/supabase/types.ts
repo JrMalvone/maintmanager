@@ -22,6 +22,7 @@ export type Database = {
           manufacturer: string | null
           model: string | null
           sector_id: string | null
+          status: string
         }
         Insert: {
           code: string
@@ -30,6 +31,7 @@ export type Database = {
           manufacturer?: string | null
           model?: string | null
           sector_id?: string | null
+          status?: string
         }
         Update: {
           code?: string
@@ -38,11 +40,50 @@ export type Database = {
           manufacturer?: string | null
           model?: string | null
           sector_id?: string | null
+          status?: string
         }
         Relationships: [
           {
             foreignKeyName: "machines_sector_id_fkey"
             columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_staff: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          preferred_sector_id: string | null
+          registration_number: string
+          specialty: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          preferred_sector_id?: string | null
+          registration_number: string
+          specialty?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          preferred_sector_id?: string | null
+          registration_number?: string
+          specialty?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_staff_preferred_sector_id_fkey"
+            columns: ["preferred_sector_id"]
             isOneToOne: false
             referencedRelation: "sectors"
             referencedColumns: ["id"]
