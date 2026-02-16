@@ -2,10 +2,17 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
 import { OrderCard } from "./OrderCard";
-import { OrderFilters } from "./OrderFilters";
 import { OrderDetailSheet } from "./OrderDetailSheet";
-import { Loader2, ClipboardList, Zap, Settings } from "lucide-react";
+import { Loader2, ClipboardList, CalendarIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { Search } from "lucide-react";
 
 export function TechnicianDashboard() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
@@ -14,27 +21,18 @@ export function TechnicianDashboard() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [maintenanceTypeFilter, setMaintenanceTypeFilter] = useState<string>("all");
+  const [historyDate, setHistoryDate] = useState<Date | undefined>();
 
   useEffect(() => {
     fetchOrders();
 
-    // Real-time subscription
     const channel = supabase
       .channel("technician_orders")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "service_orders",
-        },
-        () => {
-          fetchOrders();
-        }
+        { event: "*", schema: "public", table: "service_orders" },
+        () => fetchOrders()
       )
       .subscribe();
 
@@ -47,7 +45,7 @@ export function TechnicianDashboard() {
     const { data } = await supabase
       .from("service_orders")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
 
     if (data) setOrders(data as ServiceOrder[]);
     setLoading(false);
@@ -58,25 +56,35 @@ export function TechnicianDashboard() {
     setSheetOpen(true);
   }
 
-  // Filter orders
-  const filteredOrders = orders.filter((order) => {
-    if (statusFilter !== "all" && order.status !== statusFilter) return false;
-    if (priorityFilter !== "all" && order.priority !== priorityFilter) return false;
-    if (maintenanceTypeFilter !== "all" && order.maintenance_type !== maintenanceTypeFilter) return false;
-    if (searchQuery && !order.problem_description.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    return true;
-  });
+  // Active orders (open + in_progress), sorted oldest first
+  const activeOrders = orders
+    .filter((o) => o.status === "open" || o.status === "in_progress")
+    .filter((o) =>
+      searchQuery
+        ? o.problem_description.toLowerCase().includes(searchQuery.toLowerCase())
+        : true
+    );
 
-  // Separate by status
-  const openOrders = filteredOrders.filter((o) => o.status === "open");
-  const inProgressOrders = filteredOrders.filter((o) => o.status === "in_progress");
-  const closedOrders = filteredOrders.filter((o) => o.status === "closed");
+  const openOrders = activeOrders.filter((o) => o.status === "open");
+  const inProgressOrders = activeOrders.filter((o) => o.status === "in_progress");
 
-  // Count by maintenance type
-  const electronicCount = orders.filter((o) => o.maintenance_type === "electronic" && o.status !== "closed").length;
-  const mechanicalCount = orders.filter((o) => o.maintenance_type === "mechanical" && o.status !== "closed").length;
+  // History (closed), with optional date filter
+  const closedOrders = orders
+    .filter((o) => o.status === "closed")
+    .filter((o) => {
+      if (!historyDate) return true;
+      const orderDate = new Date(o.created_at);
+      return (
+        orderDate.getFullYear() === historyDate.getFullYear() &&
+        orderDate.getMonth() === historyDate.getMonth() &&
+        orderDate.getDate() === historyDate.getDate()
+      );
+    })
+    .filter((o) =>
+      searchQuery
+        ? o.problem_description.toLowerCase().includes(searchQuery.toLowerCase())
+        : true
+    );
 
   if (loading) {
     return (
@@ -85,71 +93,6 @@ export function TechnicianDashboard() {
       </div>
     );
   }
-
-  const renderOrderSections = () => (
-    <div className="space-y-8">
-      {/* Open Orders */}
-      {openOrders.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span className="status-badge-open">Abertas ({openOrders.length})</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {openOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onClick={() => handleOrderClick(order)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* In Progress Orders */}
-      {inProgressOrders.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span className="status-badge-progress">Em Andamento ({inProgressOrders.length})</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {inProgressOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onClick={() => handleOrderClick(order)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Closed Orders */}
-      {closedOrders.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span className="status-badge-closed">Fechadas ({closedOrders.length})</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {closedOrders.slice(0, 6).map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onClick={() => handleOrderClick(order)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {filteredOrders.length === 0 && (
-        <div className="text-center py-12">
-          <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-          <p className="text-muted-foreground">Nenhuma ordem encontrada</p>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -160,61 +103,131 @@ export function TechnicianDashboard() {
         </p>
       </div>
 
-      {/* Maintenance Type Tabs */}
-      <Tabs value={maintenanceTypeFilter} onValueChange={setMaintenanceTypeFilter} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-12">
-          <TabsTrigger value="all" className="h-10">
-            Todas
+      <Tabs defaultValue="active" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 h-12">
+          <TabsTrigger value="active" className="h-10">
+            Ativas ({openOrders.length + inProgressOrders.length})
           </TabsTrigger>
-          <TabsTrigger value="electronic" className="h-10 gap-2">
-            <Zap className="w-4 h-4 text-blue-500" />
-            Elétrico ({electronicCount})
-          </TabsTrigger>
-          <TabsTrigger value="mechanical" className="h-10 gap-2">
-            <Settings className="w-4 h-4 text-orange-500" />
-            Mecânico ({mechanicalCount})
+          <TabsTrigger value="history" className="h-10">
+            Histórico ({closedOrders.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="all" className="mt-6">
+        {/* Active Orders Tab */}
+        <TabsContent value="active" className="mt-6 space-y-6">
+          {/* Search */}
+          <div className="industrial-card p-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por descrição..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-10"
+              />
+            </div>
+          </div>
+
+          {/* Open */}
+          {openOrders.length > 0 && (
+            <section>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <span className="status-badge-open">Abertas ({openOrders.length})</span>
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {openOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* In Progress */}
+          {inProgressOrders.length > 0 && (
+            <section>
+              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <span className="status-badge-progress">Em Andamento ({inProgressOrders.length})</span>
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {inProgressOrders.map((order) => (
+                  <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {activeOrders.length === 0 && (
+            <div className="text-center py-12">
+              <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">Nenhuma ordem ativa encontrada</p>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* History Tab */}
+        <TabsContent value="history" className="mt-6 space-y-6">
           {/* Filters */}
-          <OrderFilters
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            priorityFilter={priorityFilter}
-            setPriorityFilter={setPriorityFilter}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-          />
-          <div className="mt-6">{renderOrderSections()}</div>
-        </TabsContent>
+          <div className="industrial-card p-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por descrição..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-10"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[200px] justify-start text-left font-normal h-10",
+                        !historyDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {historyDate
+                        ? format(historyDate, "dd/MM/yyyy", { locale: ptBR })
+                        : "Filtrar por data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={historyDate}
+                      onSelect={setHistoryDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {historyDate && (
+                  <Button variant="ghost" size="sm" onClick={() => setHistoryDate(undefined)} className="h-10">
+                    Limpar
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
 
-        <TabsContent value="electronic" className="mt-6">
-          <OrderFilters
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            priorityFilter={priorityFilter}
-            setPriorityFilter={setPriorityFilter}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-          />
-          <div className="mt-6">{renderOrderSections()}</div>
-        </TabsContent>
-
-        <TabsContent value="mechanical" className="mt-6">
-          <OrderFilters
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            priorityFilter={priorityFilter}
-            setPriorityFilter={setPriorityFilter}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-          />
-          <div className="mt-6">{renderOrderSections()}</div>
+          {closedOrders.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {closedOrders.map((order) => (
+                <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground">Nenhuma ordem fechada encontrada</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
-      {/* Order Detail Sheet */}
       <OrderDetailSheet
         order={selectedOrder}
         open={sheetOpen}
