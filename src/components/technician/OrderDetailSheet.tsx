@@ -19,6 +19,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -63,6 +70,13 @@ interface OrderDetailSheetProps {
 
 type MaintenanceType = "electronic" | "mechanical";
 
+interface StaffMember {
+  id: string;
+  name: string;
+  registration_number: string;
+  specialty: string;
+}
+
 export function OrderDetailSheet({
   order,
   open,
@@ -80,10 +94,11 @@ export function OrderDetailSheet({
   const { workLogs, loading: workLogsLoading } = useWorkLogs(order?.id);
   const activeTechnicians = getActiveTechnicians(workLogs);
 
-  // Start work modal (check-in)
+  // Staff selection modal
   const [startModalOpen, setStartModalOpen] = useState(false);
-  const [technicianName, setTechnicianName] = useState("");
-  const [technicianRegistry, setTechnicianRegistry] = useState("");
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [selectedStaffId, setSelectedStaffId] = useState("");
+  const [staffLoading, setStaffLoading] = useState(false);
 
   // Edit mode
   const [editMode, setEditMode] = useState(false);
@@ -100,6 +115,13 @@ export function OrderDetailSheet({
     }
   }, [order?.machine_id, order]);
 
+  // Fetch active staff when modal opens
+  useEffect(() => {
+    if (startModalOpen) {
+      fetchStaff();
+    }
+  }, [startModalOpen]);
+
   async function fetchMachine(machineId: string) {
     const { data } = await supabase
       .from("machines")
@@ -110,42 +132,53 @@ export function OrderDetailSheet({
     if (data) setMachine(data);
   }
 
+  async function fetchStaff() {
+    setStaffLoading(true);
+    const { data } = await supabase
+      .from("maintenance_staff")
+      .select("id, name, registration_number, specialty")
+      .eq("status", "active")
+      .order("name");
+
+    if (data) setStaffList(data);
+    setStaffLoading(false);
+  }
+
   async function startWork() {
-    if (!order) return;
-    if (!technicianName.trim() || !technicianRegistry.trim()) {
+    if (!order || !selectedStaffId) {
       toast({
-        title: "Identificação obrigatória",
-        description: "Informe seu nome e matrícula",
+        title: "Selecione um técnico",
+        description: "Escolha um técnico da lista",
         variant: "destructive",
       });
       return;
     }
+
+    const staff = staffList.find((s) => s.id === selectedStaffId);
+    if (!staff) return;
 
     setLoading(true);
 
     try {
       const now = new Date().toISOString();
 
-      // Add work log entry for this technician
       const { error: workLogError } = await supabase.from("work_logs").insert({
         order_id: order.id,
-        technician_name: technicianName.trim(),
-        technician_registry: technicianRegistry.trim(),
+        technician_name: staff.name,
+        technician_registry: staff.registration_number,
         started_at: now,
       });
 
       if (workLogError) throw workLogError;
 
-      // If this is the first technician, update order status to in_progress
       if (order.status === "open") {
         const { error: orderError } = await supabase
           .from("service_orders")
           .update({
             status: "in_progress",
             started_at: now,
-            // Keep the first technician's name/registry on the order for backwards compatibility
-            technician_name: technicianName.trim(),
-            technician_registry: technicianRegistry.trim(),
+            technician_name: staff.name,
+            technician_registry: staff.registration_number,
           })
           .eq("id", order.id);
 
@@ -154,12 +187,11 @@ export function OrderDetailSheet({
 
       toast({
         title: "Trabalho Iniciado",
-        description: `${technicianName} entrou na equipe`,
+        description: `${staff.name} entrou na equipe`,
       });
 
       setStartModalOpen(false);
-      setTechnicianName("");
-      setTechnicianRegistry("");
+      setSelectedStaffId("");
       onUpdate();
     } catch (error: any) {
       toast({
@@ -187,19 +219,11 @@ export function OrderDetailSheet({
 
       if (error) throw error;
 
-      toast({
-        title: "Ordem Atualizada",
-        description: "As alterações foram salvas",
-      });
-
+      toast({ title: "Ordem Atualizada", description: "As alterações foram salvas" });
       setEditMode(false);
       onUpdate();
     } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -220,7 +244,6 @@ export function OrderDetailSheet({
     try {
       const now = new Date();
 
-      // Auto-stop all active technicians
       for (const log of activeTechnicians) {
         const durationMinutes = differenceInMinutes(now, new Date(log.started_at));
         await supabase
@@ -232,7 +255,6 @@ export function OrderDetailSheet({
           .eq("id", log.id);
       }
 
-      // Close the order
       const { error } = await supabase
         .from("service_orders")
         .update({
@@ -245,21 +267,13 @@ export function OrderDetailSheet({
 
       if (error) throw error;
 
-      toast({
-        title: "Ordem Fechada",
-        description: "O serviço foi concluído com sucesso",
-      });
-
+      toast({ title: "Ordem Fechada", description: "O serviço foi concluído com sucesso" });
       onUpdate();
       onOpenChange(false);
       setSolutionDescription("");
       setSpareParts([]);
     } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -276,14 +290,12 @@ export function OrderDetailSheet({
     setSpareParts(spareParts.filter((_, i) => i !== index));
   }
 
-  // Refetch work logs when updated
   function handleWorkLogUpdate() {
     onUpdate();
   }
 
   if (!order) return null;
 
-  // Calculate total man-hours from work logs
   const totalManMinutes = workLogs
     .filter((log) => log.duration_minutes !== null)
     .reduce((acc, log) => acc + (log.duration_minutes || 0), 0);
@@ -377,12 +389,7 @@ export function OrderDetailSheet({
               <div className="flex items-center justify-between">
                 <Label className="text-muted-foreground">Problema Reportado</Label>
                 {(order.status === "open" || order.status === "in_progress") && !editMode && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditMode(true)}
-                    className="text-primary"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setEditMode(true)} className="text-primary">
                     <Pencil className="w-4 h-4 mr-1" />
                     Editar
                   </Button>
@@ -496,7 +503,7 @@ export function OrderDetailSheet({
               )}
             </div>
 
-            {/* Active Team Panel (for open or in_progress orders) */}
+            {/* Active Team Panel */}
             {(order.status === "open" || order.status === "in_progress") && (
               <>
                 <Separator />
@@ -507,7 +514,6 @@ export function OrderDetailSheet({
                     onUpdate={handleWorkLogUpdate}
                   />
 
-                  {/* Join Team Button */}
                   <Button
                     onClick={() => setStartModalOpen(true)}
                     variant="outline"
@@ -550,7 +556,7 @@ export function OrderDetailSheet({
               </>
             )}
 
-            {/* Close Order Actions (for in_progress orders) */}
+            {/* Close Order Actions */}
             {order.status === "in_progress" && (
               <>
                 <Separator />
@@ -618,8 +624,7 @@ export function OrderDetailSheet({
                           <AlertDialogTitle>Fechar Ordem de Serviço</AlertDialogTitle>
                           <AlertDialogDescription>
                             Existem {activeTechnicians.length} técnico(s) ainda ativos.
-                            Ao fechar a ordem, o trabalho de todos será encerrado
-                            automaticamente.
+                            Ao fechar a ordem, o trabalho de todos será encerrado automaticamente.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -653,40 +658,44 @@ export function OrderDetailSheet({
         </SheetContent>
       </Sheet>
 
-      {/* Technician Identification Modal */}
+      {/* Technician Selection Modal */}
       <Dialog open={startModalOpen} onOpenChange={setStartModalOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="w-5 h-5" />
-              Identificação do Técnico
+              Selecionar Técnico
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="techName">Nome do Técnico *</Label>
-              <Input
-                id="techName"
-                placeholder="Seu nome completo"
-                value={technicianName}
-                onChange={(e) => setTechnicianName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="techRegistry">Matrícula *</Label>
-              <Input
-                id="techRegistry"
-                placeholder="Número da matrícula"
-                value={technicianRegistry}
-                onChange={(e) => setTechnicianRegistry(e.target.value)}
-              />
+              <Label>Técnico *</Label>
+              {staffLoading ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Carregando...
+                </div>
+              ) : (
+                <Select value={selectedStaffId} onValueChange={setSelectedStaffId}>
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Selecione um técnico" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staffList.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.id}>
+                        {staff.name} — {staff.registration_number} ({staff.specialty === "both" ? "Ambos" : staff.specialty === "electronic" ? "Elétrico" : "Mecânico"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStartModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={startWork} disabled={loading} className="btn-industrial">
+            <Button onClick={startWork} disabled={loading || !selectedStaffId} className="btn-industrial">
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
