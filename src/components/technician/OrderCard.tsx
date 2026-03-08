@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
 import { formatDateTime } from "@/lib/dateUtils";
 import { STATUS_LABELS } from "@/lib/constants";
-import { Clock, AlertTriangle, CheckCircle, Wrench, Users, User } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, Wrench, Users, User, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { differenceInMinutes } from "date-fns";
 
 interface OrderCardProps {
   order: ServiceOrder;
@@ -16,10 +17,43 @@ interface MachineInfo {
   model: string | null;
 }
 
+function formatElapsed(totalMinutes: number): string {
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const mins = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h ${mins}m`;
+  return `${hours}h ${String(mins).padStart(2, "0")}m`;
+}
+
+function getElapsedColorClass(totalMinutes: number): string {
+  if (totalMinutes > 1440) return "text-[hsl(var(--priority-critical))]";
+  if (totalMinutes > 120) return "text-[hsl(var(--priority-medium))]";
+  return "text-[hsl(var(--status-closed))]";
+}
+
 export function OrderCard({ order, onClick }: OrderCardProps) {
   const [machine, setMachine] = useState<MachineInfo | null>(null);
   const [firstTech, setFirstTech] = useState<string | null>(null);
   const [activeTechCount, setActiveTechCount] = useState(0);
+  const [elapsedMin, setElapsedMin] = useState(0);
+
+  const isClosed = order.status === "closed";
+
+  // Compute elapsed minutes
+  useEffect(() => {
+    const compute = () => {
+      if (isClosed && order.finished_at) {
+        setElapsedMin(differenceInMinutes(new Date(order.finished_at), new Date(order.created_at)));
+      } else {
+        setElapsedMin(differenceInMinutes(new Date(), new Date(order.created_at)));
+      }
+    };
+    compute();
+    if (!isClosed) {
+      const interval = setInterval(compute, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [order.created_at, order.finished_at, isClosed]);
 
   useEffect(() => {
     if (order.machine_id) {
@@ -33,7 +67,6 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
         });
     }
 
-    // Get first technician from work_logs
     if (order.status !== "open") {
       supabase
         .from("work_logs")
@@ -48,7 +81,6 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
         });
     }
 
-    // Active tech count for in_progress
     if (order.status === "in_progress") {
       supabase
         .from("work_logs")
@@ -69,7 +101,7 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
         order.is_machine_stopped && "border-l-4 border-l-status-stopped"
       )}
     >
-      {/* Header: Machine info */}
+      {/* Header: Machine info + Timer */}
       <div className="flex items-start justify-between mb-2">
         <div className="font-mono font-bold text-sm text-foreground truncate flex-1">
           {machine ? (
@@ -83,17 +115,26 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
             <span className="text-muted-foreground">Carregando...</span>
           )}
         </div>
-        {order.is_machine_stopped && (
-          <span className="machine-stopped ml-2">
-            <AlertTriangle className="w-4 h-4" />
-          </span>
-        )}
+        <div className="flex items-center gap-1 ml-2 shrink-0">
+          {order.is_machine_stopped && (
+            <span className="machine-stopped">
+              <AlertTriangle className="w-4 h-4" />
+            </span>
+          )}
+          <div className={cn("flex items-center gap-1 font-mono text-xs font-bold", getElapsedColorClass(elapsedMin))}>
+            <Timer className="w-3.5 h-3.5" />
+            <span>{formatElapsed(elapsedMin)}</span>
+          </div>
+        </div>
       </div>
 
       {/* Date & Time Opened */}
       <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
         <Clock className="w-3.5 h-3.5" />
         {formatDateTime(order.created_at)}
+        {isClosed && (
+          <span className="ml-2 text-muted-foreground italic">Tempo total</span>
+        )}
       </div>
 
       {/* Problem Description */}
