@@ -7,12 +7,15 @@ import { BacklogChart } from "./BacklogChart";
 import { ParetoChart } from "./ParetoChart";
 import { TechnicianPerformance } from "./TechnicianPerformance";
 import { OrderHistory } from "./OrderHistory";
+import { DashboardFilters, getDefaultFilter, type DateFilter } from "./DashboardFilters";
 import { Loader2 } from "lucide-react";
+import { isWithinInterval } from "date-fns";
 
 export function ManagerDashboard() {
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
-  const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
+  const [allOrders, setAllOrders] = useState<ServiceOrder[]>([]);
+  const [allWorkLogs, setAllWorkLogs] = useState<WorkLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<DateFilter>(getDefaultFilter);
 
   useEffect(() => {
     fetchData();
@@ -30,10 +33,21 @@ export function ManagerDashboard() {
         .order("started_at", { ascending: false }),
     ]);
 
-    if (ordersRes.data) setOrders(ordersRes.data as ServiceOrder[]);
-    if (workLogsRes.data) setWorkLogs(workLogsRes.data as WorkLog[]);
+    if (ordersRes.data) setAllOrders(ordersRes.data as ServiceOrder[]);
+    if (workLogsRes.data) setAllWorkLogs(workLogsRes.data as WorkLog[]);
     setLoading(false);
   }
+
+  // Filter data by selected time period
+  const orders = allOrders.filter((o) => {
+    const date = new Date(o.created_at);
+    return isWithinInterval(date, { start: filter.start, end: filter.end });
+  });
+
+  const workLogs = allWorkLogs.filter((wl) => {
+    const date = new Date(wl.started_at);
+    return isWithinInterval(date, { start: filter.start, end: filter.end });
+  });
 
   if (loading) {
     return (
@@ -52,12 +66,15 @@ export function ManagerDashboard() {
         </p>
       </div>
 
+      {/* Global Time Filter */}
+      <DashboardFilters filter={filter} onChange={setFilter} />
+
       {/* KPI Cards */}
       <KPICards orders={orders} workLogs={workLogs} />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BacklogChart orders={orders} />
+        <BacklogChart orders={orders} dateFilter={filter} />
         <ParetoChart orders={orders} />
       </div>
 

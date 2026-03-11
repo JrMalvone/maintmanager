@@ -68,23 +68,34 @@ export function TechnicianDashboard() {
   const openOrders = activeOrders.filter((o) => o.status === "open");
   const inProgressOrders = activeOrders.filter((o) => o.status === "in_progress");
 
-  // History (closed), with optional date filter
+  // History (closed), sorted newest first by finished_at, with optional date filter
   const closedOrders = orders
     .filter((o) => o.status === "closed")
     .filter((o) => {
       if (!historyDate) return true;
-      const orderDate = new Date(o.created_at);
-      return (
-        orderDate.getFullYear() === historyDate.getFullYear() &&
-        orderDate.getMonth() === historyDate.getMonth() &&
-        orderDate.getDate() === historyDate.getDate()
-      );
+      const createdDate = new Date(o.created_at);
+      const finishedDate = o.finished_at ? new Date(o.finished_at) : null;
+      const matchesCreated =
+        createdDate.getFullYear() === historyDate.getFullYear() &&
+        createdDate.getMonth() === historyDate.getMonth() &&
+        createdDate.getDate() === historyDate.getDate();
+      const matchesFinished = finishedDate
+        ? finishedDate.getFullYear() === historyDate.getFullYear() &&
+          finishedDate.getMonth() === historyDate.getMonth() &&
+          finishedDate.getDate() === historyDate.getDate()
+        : false;
+      return matchesCreated || matchesFinished;
     })
     .filter((o) =>
       searchQuery
         ? o.problem_description.toLowerCase().includes(searchQuery.toLowerCase())
         : true
-    );
+    )
+    .sort((a, b) => {
+      const dateA = a.finished_at ? new Date(a.finished_at).getTime() : 0;
+      const dateB = b.finished_at ? new Date(b.finished_at).getTime() : 0;
+      return dateB - dateA;
+    });
 
   if (loading) {
     return (
