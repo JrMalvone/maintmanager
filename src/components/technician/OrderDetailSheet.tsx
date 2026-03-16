@@ -92,6 +92,11 @@ export function OrderDetailSheet({
   const [spareParts, setSpareParts] = useState<string[]>([]);
   const [newPart, setNewPart] = useState("");
 
+  // AI Diagnostic
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   // Work logs for this order
   const { workLogs, loading: workLogsLoading } = useWorkLogs(order?.id);
   const activeTechnicians = getActiveTechnicians(workLogs);
