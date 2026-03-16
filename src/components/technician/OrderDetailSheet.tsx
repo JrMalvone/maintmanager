@@ -297,6 +297,48 @@ export function OrderDetailSheet({
     setSpareParts(spareParts.filter((_, i) => i !== index));
   }
 
+  async function runAiDiagnostic() {
+    if (!order || !machine) return;
+    setAiLoading(true);
+    setAiResult(null);
+    setAiError(null);
+
+    try {
+      // Fetch history for RAG
+      const { data: historyData } = await supabase
+        .from("service_orders")
+        .select("problem_description, solution_description")
+        .eq("status", "closed")
+        .eq("machine_id", order.machine_id!)
+        .order("finished_at", { ascending: false })
+        .limit(5);
+
+      const history = (historyData || []).map((h) => ({
+        problem: h.problem_description,
+        solution: h.solution_description || "Sem descrição",
+      }));
+
+      const { data, error } = await supabase.functions.invoke("ai-diagnostic", {
+        body: {
+          machineName: `${machine.code} - ${machine.model || ""} ${machine.manufacturer || ""}`.trim(),
+          maintenanceType: order.maintenance_type || "mechanical",
+          problemDescription: order.problem_description,
+          history,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setAiResult(data.analysis);
+    } catch (err: any) {
+      console.error("AI diagnostic error:", err);
+      setAiError(err.message || "Erro ao consultar a IA. Verifique sua conexão.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   function handleWorkLogUpdate() {
     onUpdate();
   }
