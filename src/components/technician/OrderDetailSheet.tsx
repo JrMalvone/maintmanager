@@ -555,6 +555,7 @@ export function OrderDetailSheet({
                   </div>
                 )}
               </div>
+            )}
 
             {/* Timestamps */}
             <div className="grid grid-cols-2 gap-4 text-sm">
