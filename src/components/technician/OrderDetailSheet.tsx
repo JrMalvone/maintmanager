@@ -6,6 +6,7 @@ import { formatDateTime, calculateDuration } from "@/lib/dateUtils";
 import { STATUS_LABELS } from "@/lib/constants";
 import { ActiveTeamPanel } from "./ActiveTeamPanel";
 import { WorkLogHistory } from "./WorkLogHistory";
+import ReactMarkdown from "react-markdown";
 import {
   Sheet,
   SheetContent,
@@ -58,6 +59,7 @@ import {
   Pencil,
   User,
   UserPlus,
+  Sparkles,
 } from "lucide-react";
 import { differenceInMinutes } from "date-fns";
 
@@ -89,6 +91,11 @@ export function OrderDetailSheet({
   const [solutionDescription, setSolutionDescription] = useState("");
   const [spareParts, setSpareParts] = useState<string[]>([]);
   const [newPart, setNewPart] = useState("");
+
+  // AI Diagnostic
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Work logs for this order
   const { workLogs, loading: workLogsLoading } = useWorkLogs(order?.id);
@@ -290,6 +297,48 @@ export function OrderDetailSheet({
     setSpareParts(spareParts.filter((_, i) => i !== index));
   }
 
+  async function runAiDiagnostic() {
+    if (!order || !machine) return;
+    setAiLoading(true);
+    setAiResult(null);
+    setAiError(null);
+
+    try {
+      // Fetch history for RAG
+      const { data: historyData } = await supabase
+        .from("service_orders")
+        .select("problem_description, solution_description")
+        .eq("status", "closed")
+        .eq("machine_id", order.machine_id!)
+        .order("finished_at", { ascending: false })
+        .limit(5);
+
+      const history = (historyData || []).map((h) => ({
+        problem: h.problem_description,
+        solution: h.solution_description || "Sem descrição",
+      }));
+
+      const { data, error } = await supabase.functions.invoke("ai-diagnostic", {
+        body: {
+          machineName: `${machine.code} - ${machine.model || ""} ${machine.manufacturer || ""}`.trim(),
+          maintenanceType: order.maintenance_type || "mechanical",
+          problemDescription: order.problem_description,
+          history,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setAiResult(data.analysis);
+    } catch (err: any) {
+      console.error("AI diagnostic error:", err);
+      setAiError(err.message || "Erro ao consultar a IA. Verifique sua conexão.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   function handleWorkLogUpdate() {
     onUpdate();
   }
@@ -455,6 +504,58 @@ export function OrderDetailSheet({
                 <p className="text-sm">{order.problem_description}</p>
               )}
             </div>
+
+            {/* AI Diagnostic */}
+            {(order.status === "open" || order.status === "in_progress") && machine && (
+              <div className="space-y-3">
+                <Button
+                  onClick={runAiDiagnostic}
+                  disabled={aiLoading}
+                  variant="outline"
+                  className="w-full h-12 border-primary/50 text-primary hover:bg-primary/10"
+                >
+                  {aiLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  ) : (
+                    <Sparkles className="w-5 h-5 mr-2" />
+                  )}
+                  {aiLoading ? "Analisando..." : "Analisar Falha (IA)"}
+                </Button>
+
+                {aiLoading && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2 animate-pulse">
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-full" />
+                    <div className="h-4 bg-muted rounded w-5/6" />
+                    <div className="h-4 bg-muted rounded w-2/3" />
+                  </div>
+                )}
+
+                {aiError && (
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                    <p className="text-sm text-destructive flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      {aiError}
+                    </p>
+                  </div>
+                )}
+
+                {aiResult && (
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-primary font-semibold text-sm">
+                      <Sparkles className="w-4 h-4" />
+                      Diagnóstico IA
+                    </div>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                      <ReactMarkdown>{aiResult}</ReactMarkdown>
+                    </div>
+                    <p className="text-xs text-muted-foreground italic border-t border-border pt-2">
+                      Sugestão da IA baseada no histórico. Verifique com segurança.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Timestamps */}
             <div className="grid grid-cols-2 gap-4 text-sm">
