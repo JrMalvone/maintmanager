@@ -6,6 +6,7 @@ import { formatDateTime, calculateDuration } from "@/lib/dateUtils";
 import { STATUS_LABELS } from "@/lib/constants";
 import { ActiveTeamPanel } from "./ActiveTeamPanel";
 import { WorkLogHistory } from "./WorkLogHistory";
+import ReactMarkdown from "react-markdown";
 import {
   Sheet,
   SheetContent,
@@ -58,6 +59,7 @@ import {
   Pencil,
   User,
   UserPlus,
+  Sparkles,
 } from "lucide-react";
 import { differenceInMinutes } from "date-fns";
 
