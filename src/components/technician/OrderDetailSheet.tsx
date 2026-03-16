@@ -505,6 +505,57 @@ export function OrderDetailSheet({
               )}
             </div>
 
+            {/* AI Diagnostic */}
+            {(order.status === "open" || order.status === "in_progress") && machine && (
+              <div className="space-y-3">
+                <Button
+                  onClick={runAiDiagnostic}
+                  disabled={aiLoading}
+                  variant="outline"
+                  className="w-full h-12 border-primary/50 text-primary hover:bg-primary/10"
+                >
+                  {aiLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  ) : (
+                    <Sparkles className="w-5 h-5 mr-2" />
+                  )}
+                  {aiLoading ? "Analisando..." : "Analisar Falha (IA)"}
+                </Button>
+
+                {aiLoading && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2 animate-pulse">
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-full" />
+                    <div className="h-4 bg-muted rounded w-5/6" />
+                    <div className="h-4 bg-muted rounded w-2/3" />
+                  </div>
+                )}
+
+                {aiError && (
+                  <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                    <p className="text-sm text-destructive flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                      {aiError}
+                    </p>
+                  </div>
+                )}
+
+                {aiResult && (
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-primary font-semibold text-sm">
+                      <Sparkles className="w-4 h-4" />
+                      Diagnóstico IA
+                    </div>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+                      <ReactMarkdown>{aiResult}</ReactMarkdown>
+                    </div>
+                    <p className="text-xs text-muted-foreground italic border-t border-border pt-2">
+                      Sugestão da IA baseada no histórico. Verifique com segurança.
+                    </p>
+                  </div>
+                )}
+              </div>
+
             {/* Timestamps */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
