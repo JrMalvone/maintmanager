@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarIcon, X, Factory } from "lucide-react";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import type { DateRange } from "react-day-picker";
 
 export type PresetPeriod = "daily" | "weekly" | "monthly" | "yearly" | "custom";
@@ -16,9 +18,16 @@ export interface DateFilter {
   preset: PresetPeriod;
 }
 
+interface Sector {
+  id: string;
+  name: string;
+}
+
 interface DashboardFiltersProps {
   filter: DateFilter;
   onChange: (filter: DateFilter) => void;
+  sectorId: string;
+  onSectorChange: (sectorId: string) => void;
 }
 
 const PRESETS: { value: PresetPeriod; label: string }[] = [
@@ -37,10 +46,19 @@ export function getDefaultFilter(): DateFilter {
   };
 }
 
-export function DashboardFilters({ filter, onChange }: DashboardFiltersProps) {
+export function DashboardFilters({ filter, onChange, sectorId, onSectorChange }: DashboardFiltersProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     filter.preset === "custom" ? { from: filter.start, to: filter.end } : undefined
   );
+  const [sectors, setSectors] = useState<Sector[]>([]);
+
+  useEffect(() => {
+    async function fetchSectors() {
+      const { data } = await supabase.from("sectors").select("id, name").order("name");
+      if (data) setSectors(data);
+    }
+    fetchSectors();
+  }, []);
 
   function handlePreset(preset: PresetPeriod) {
     const now = new Date();
@@ -103,7 +121,7 @@ export function DashboardFilters({ filter, onChange }: DashboardFiltersProps) {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 ml-0 sm:ml-auto">
+        <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -136,6 +154,23 @@ export function DashboardFilters({ filter, onChange }: DashboardFiltersProps) {
               <X className="h-4 w-4" />
             </Button>
           )}
+        </div>
+
+        <div className="flex items-center gap-2 ml-0 sm:ml-auto">
+          <Factory className="h-4 w-4 text-muted-foreground" />
+          <Select value={sectorId} onValueChange={onSectorChange}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue placeholder="Todos os Setores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Setores</SelectItem>
+              {sectors.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <p className="text-xs text-muted-foreground mt-2">
