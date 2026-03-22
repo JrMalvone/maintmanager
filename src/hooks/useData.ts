@@ -35,6 +35,9 @@ interface ServiceOrder {
   technician_name: string | null;
   technician_registry: string | null;
   maintenance_type: "electronic" | "mechanical" | null;
+  sap_sync_status: string | null;
+  sap_notification_number: string | null;
+  sap_sync_message: string | null;
 }
 
 export function useSectors() {

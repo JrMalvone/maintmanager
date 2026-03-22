@@ -398,6 +398,18 @@ export function OrderDetailSheet({
               )}
             </div>
 
+            {/* SAP Status */}
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">Integração SAP</Label>
+              <div>
+                <SapStatusBadge
+                  status={order.sap_sync_status}
+                  notificationNumber={order.sap_notification_number}
+                  syncMessage={order.sap_sync_message}
+                />
+              </div>
+            </div>
+
             <Separator />
 
             {/* Opener Info */}
