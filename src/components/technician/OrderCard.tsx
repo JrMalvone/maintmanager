@@ -6,6 +6,7 @@ import { STATUS_LABELS } from "@/lib/constants";
 import { Clock, AlertTriangle, CheckCircle, Wrench, Users, User, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { differenceInMinutes } from "date-fns";
+import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
 
 interface OrderCardProps {
   order: ServiceOrder;
@@ -179,9 +180,17 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
             STATUS_LABELS[order.status]
           )}
         </span>
-        <span className="text-xs text-muted-foreground font-mono">
-          #{order.id.slice(0, 8)}
-        </span>
+        <div className="flex items-center gap-2">
+          <SapStatusBadge
+            status={order.sap_sync_status}
+            notificationNumber={order.sap_notification_number}
+            syncMessage={order.sap_sync_message}
+            compact
+          />
+          <span className="text-xs text-muted-foreground font-mono">
+            #{order.id.slice(0, 8)}
+          </span>
+        </div>
       </div>
     </button>
   );

@@ -7,6 +7,7 @@ import { STATUS_LABELS } from "@/lib/constants";
 import { ActiveTeamPanel } from "./ActiveTeamPanel";
 import { WorkLogHistory } from "./WorkLogHistory";
 import ReactMarkdown from "react-markdown";
+import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
 import {
   Sheet,
   SheetContent,
@@ -396,6 +397,18 @@ export function OrderDetailSheet({
                   Em Operação
                 </span>
               )}
+            </div>
+
+            {/* SAP Status */}
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">Integração SAP</Label>
+              <div>
+                <SapStatusBadge
+                  status={order.sap_sync_status}
+                  notificationNumber={order.sap_notification_number}
+                  syncMessage={order.sap_sync_message}
+                />
+              </div>
             </div>
 
             <Separator />
