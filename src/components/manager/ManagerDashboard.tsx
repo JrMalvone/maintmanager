@@ -100,6 +100,7 @@ export function ManagerDashboard() {
 
       <TechnicianPerformance workLogs={workLogs} />
       <OrderHistory orders={orders} />
+      <CriticalDowntimeTable orders={orders} machines={machines} />
     </div>
   );
 }
