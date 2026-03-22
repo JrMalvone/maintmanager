@@ -7,6 +7,7 @@ import { STATUS_LABELS } from "@/lib/constants";
 import { ActiveTeamPanel } from "./ActiveTeamPanel";
 import { WorkLogHistory } from "./WorkLogHistory";
 import ReactMarkdown from "react-markdown";
+import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
 import {
   Sheet,
   SheetContent,

@@ -11,6 +11,7 @@ import {
   Zap,
   Settings,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import { AvailabilityGauge } from "./AvailabilityGauge";
 
@@ -66,6 +67,10 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
   const closedAll = orders.filter((o) => o.status === "closed");
   const electronicCount = closedAll.filter((o) => o.maintenance_type === "electronic").length;
   const mechanicalCount = closedAll.filter((o) => o.maintenance_type === "mechanical").length;
+
+  // SAP sync counts
+  const sapPendingCount = orders.filter((o) => !o.sap_sync_status || o.sap_sync_status === "Pending").length;
+  const sapErrorCount = orders.filter((o) => o.sap_sync_status === "Error").length;
 
   return (
     <div className="space-y-4">
@@ -172,6 +177,31 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
               <div>
                 <p className="text-xl font-bold text-foreground">{mechanicalCount}</p>
                 <p className="text-xs text-muted-foreground">Mecânico</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* SAP Integration Status */}
+        <div className="kpi-card">
+          <div className="flex items-center justify-between mb-2">
+            <RefreshCw className="w-5 h-5 text-primary" />
+            <span className="text-xs text-muted-foreground">SAP RPA</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <p className="text-xl font-bold text-foreground">{sapPendingCount}</p>
+                <p className="text-xs text-muted-foreground">Pendentes</p>
+              </div>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-destructive" />
+              <div>
+                <p className="text-xl font-bold text-destructive">{sapErrorCount}</p>
+                <p className="text-xs text-muted-foreground">Erros</p>
               </div>
             </div>
           </div>
