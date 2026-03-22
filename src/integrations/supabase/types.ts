@@ -151,6 +151,9 @@ export type Database = {
           operator_id: string | null
           priority: Database["public"]["Enums"]["priority_level"]
           problem_description: string
+          sap_notification_number: string | null
+          sap_sync_message: string | null
+          sap_sync_status: string
           solution_description: string | null
           spare_parts_used: string[] | null
           started_at: string | null
@@ -171,6 +174,9 @@ export type Database = {
           operator_id?: string | null
           priority?: Database["public"]["Enums"]["priority_level"]
           problem_description: string
+          sap_notification_number?: string | null
+          sap_sync_message?: string | null
+          sap_sync_status?: string
           solution_description?: string | null
           spare_parts_used?: string[] | null
           started_at?: string | null
@@ -191,6 +197,9 @@ export type Database = {
           operator_id?: string | null
           priority?: Database["public"]["Enums"]["priority_level"]
           problem_description?: string
+          sap_notification_number?: string | null
+          sap_sync_message?: string | null
+          sap_sync_status?: string
           solution_description?: string | null
           spare_parts_used?: string[] | null
           started_at?: string | null
