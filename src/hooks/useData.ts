@@ -45,6 +45,7 @@ interface ServiceOrder {
   malf_end_date: string | null;
   malf_end_time: string | null;
   apontamentos: any[] | null;
+  machine_number: string | null;
 }
 
 export function useSectors() {

@@ -73,12 +73,24 @@ export function ServiceOrderForm() {
 
     try {
       const now = new Date();
-      const workCenterPrefix = machines.find((m) => m.id === machineId)?.code || "";
+      const machine = machines.find((m) => m.id === machineId);
+      const machineCode = machine?.code || "";
+
+      // Build work_center from sector abbreviation, not machine code
+      let sectorAbbrev = "";
+      if (machine?.sector_id) {
+        const sector = sectors.find((s) => s.id === machine.sector_id);
+        if (sector) {
+          // Use first 3 chars uppercase as abbreviation
+          sectorAbbrev = sector.name.slice(0, 3).toUpperCase();
+        }
+      }
       const workCenterSuffix = maintenanceType === "electronic" ? "ELT" : "MEC";
-      const workCenter = `${workCenterPrefix}-${workCenterSuffix}`;
+      const workCenter = sectorAbbrev ? `${sectorAbbrev}-${workCenterSuffix}` : workCenterSuffix;
 
       const { error } = await supabase.from("service_orders").insert({
         machine_id: machineId,
+        machine_number: machineCode,
         problem_description: problemDescription.trim(),
         is_machine_stopped: isMachineStopped,
         is_breakdown: isMachineStopped,
