@@ -147,6 +147,7 @@ export type Database = {
           is_breakdown: boolean
           is_machine_stopped: boolean
           machine_id: string | null
+          machine_number: string | null
           maintenance_type: string | null
           malf_end_date: string | null
           malf_end_time: string | null
@@ -177,6 +178,7 @@ export type Database = {
           is_breakdown?: boolean
           is_machine_stopped?: boolean
           machine_id?: string | null
+          machine_number?: string | null
           maintenance_type?: string | null
           malf_end_date?: string | null
           malf_end_time?: string | null
@@ -207,6 +209,7 @@ export type Database = {
           is_breakdown?: boolean
           is_machine_stopped?: boolean
           machine_id?: string | null
+          machine_number?: string | null
           maintenance_type?: string | null
           malf_end_date?: string | null
           malf_end_time?: string | null

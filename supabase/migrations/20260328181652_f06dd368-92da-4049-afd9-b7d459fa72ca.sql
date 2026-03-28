@@ -1,0 +1,1 @@
+ALTER TABLE public.service_orders ADD COLUMN IF NOT EXISTS machine_number text;

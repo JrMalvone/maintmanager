@@ -25,8 +25,11 @@ export function toSapTime(date: Date): string {
 export function toSapHours(start: Date, end: Date): string {
   const diffMs = end.getTime() - start.getTime();
   const hours = diffMs / (1000 * 60 * 60);
-  // Round to 1 decimal place
-  const rounded = Math.round(hours * 10) / 10;
+  // Round to 1 decimal place, enforce minimum 0.1 for non-zero durations
+  let rounded = Math.round(hours * 10) / 10;
+  if (rounded === 0 && diffMs > 0) {
+    rounded = 0.1;
+  }
   return rounded.toString().replace(".", ",");
 }
 
