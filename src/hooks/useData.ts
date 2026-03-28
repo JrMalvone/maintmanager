@@ -29,7 +29,6 @@ interface ServiceOrder {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
-  // New fields for role-based workflow
   opener_name: string | null;
   opener_registry: string | null;
   technician_name: string | null;
@@ -38,6 +37,14 @@ interface ServiceOrder {
   sap_sync_status: string | null;
   sap_notification_number: string | null;
   sap_sync_message: string | null;
+  // SAP-formatted fields
+  is_breakdown: boolean;
+  work_center: string | null;
+  malf_start_date: string | null;
+  malf_start_time: string | null;
+  malf_end_date: string | null;
+  malf_end_time: string | null;
+  apontamentos: any[] | null;
 }
 
 export function useSectors() {

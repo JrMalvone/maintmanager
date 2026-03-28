@@ -140,12 +140,18 @@ export type Database = {
       }
       service_orders: {
         Row: {
+          apontamentos: Json | null
           created_at: string
           finished_at: string | null
           id: string
+          is_breakdown: boolean
           is_machine_stopped: boolean
           machine_id: string | null
           maintenance_type: string | null
+          malf_end_date: string | null
+          malf_end_time: string | null
+          malf_start_date: string | null
+          malf_start_time: string | null
           opener_name: string | null
           opener_registry: string | null
           operator_id: string | null
@@ -161,14 +167,21 @@ export type Database = {
           technician_id: string | null
           technician_name: string | null
           technician_registry: string | null
+          work_center: string | null
         }
         Insert: {
+          apontamentos?: Json | null
           created_at?: string
           finished_at?: string | null
           id?: string
+          is_breakdown?: boolean
           is_machine_stopped?: boolean
           machine_id?: string | null
           maintenance_type?: string | null
+          malf_end_date?: string | null
+          malf_end_time?: string | null
+          malf_start_date?: string | null
+          malf_start_time?: string | null
           opener_name?: string | null
           opener_registry?: string | null
           operator_id?: string | null
@@ -184,14 +197,21 @@ export type Database = {
           technician_id?: string | null
           technician_name?: string | null
           technician_registry?: string | null
+          work_center?: string | null
         }
         Update: {
+          apontamentos?: Json | null
           created_at?: string
           finished_at?: string | null
           id?: string
+          is_breakdown?: boolean
           is_machine_stopped?: boolean
           machine_id?: string | null
           maintenance_type?: string | null
+          malf_end_date?: string | null
+          malf_end_time?: string | null
+          malf_start_date?: string | null
+          malf_start_time?: string | null
           opener_name?: string | null
           opener_registry?: string | null
           operator_id?: string | null
@@ -207,6 +227,7 @@ export type Database = {
           technician_id?: string | null
           technician_name?: string | null
           technician_registry?: string | null
+          work_center?: string | null
         }
         Relationships: [
           {

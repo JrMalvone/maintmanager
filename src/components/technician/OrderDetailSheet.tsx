@@ -4,6 +4,7 @@ import type { ServiceOrder, Machine } from "@/hooks/useData";
 import { useWorkLogs, getActiveTechnicians } from "@/hooks/useWorkLogs";
 import { formatDateTime, calculateDuration } from "@/lib/dateUtils";
 import { STATUS_LABELS } from "@/lib/constants";
+import { toSapDate, toSapTime, buildApontamento, type SapApontamento } from "@/lib/sapFormat";
 import { ActiveTeamPanel } from "./ActiveTeamPanel";
 import { WorkLogHistory } from "./WorkLogHistory";
 import ReactMarkdown from "react-markdown";
@@ -252,6 +253,7 @@ export function OrderDetailSheet({
     try {
       const now = new Date();
 
+      // Close all active technician work logs
       for (const log of activeTechnicians) {
         const durationMinutes = differenceInMinutes(now, new Date(log.started_at));
         await supabase
@@ -263,6 +265,24 @@ export function OrderDetailSheet({
           .eq("id", log.id);
       }
 
+      // Build apontamentos JSONB from ALL work logs (completed + just-closed)
+      const allLogs = [
+        ...workLogs.filter((l) => l.ended_at !== null),
+        ...activeTechnicians.map((l) => ({ ...l, ended_at: now.toISOString() })),
+      ];
+
+      const apontamentos: SapApontamento[] = allLogs.map((log) => {
+        const start = new Date(log.started_at);
+        const end = new Date(log.ended_at!);
+        return buildApontamento(
+          log.technician_registry || log.technician_name,
+          start,
+          end,
+          solutionDescription.trim()
+        );
+      });
+
+      // Fetch existing apontamentos to avoid overwriting (unlikely but safe)
       const { error } = await supabase
         .from("service_orders")
         .update({
@@ -270,6 +290,9 @@ export function OrderDetailSheet({
           solution_description: solutionDescription.trim(),
           spare_parts_used: spareParts.length > 0 ? spareParts : null,
           finished_at: now.toISOString(),
+          malf_end_date: toSapDate(now),
+          malf_end_time: toSapTime(now),
+          apontamentos: apontamentos as any,
         })
         .eq("id", order.id);
 
