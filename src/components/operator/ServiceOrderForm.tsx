@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSectors, useMachines } from "@/hooks/useData";
 import { supabase } from "@/integrations/supabase/client";
+import { toSapDate, toSapTime } from "@/lib/sapFormat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,14 +72,23 @@ export function ServiceOrderForm() {
     setSubmitting(true);
 
     try {
+      const now = new Date();
+      const workCenterPrefix = machines.find((m) => m.id === machineId)?.code || "";
+      const workCenterSuffix = maintenanceType === "electronic" ? "ELT" : "MEC";
+      const workCenter = `${workCenterPrefix}-${workCenterSuffix}`;
+
       const { error } = await supabase.from("service_orders").insert({
         machine_id: machineId,
         problem_description: problemDescription.trim(),
         is_machine_stopped: isMachineStopped,
+        is_breakdown: isMachineStopped,
         priority: "medium",
         maintenance_type: maintenanceType,
         opener_name: openerName.trim(),
         opener_registry: openerRegistry.trim(),
+        work_center: workCenter,
+        malf_start_date: toSapDate(now),
+        malf_start_time: toSapTime(now),
       });
 
       if (error) throw error;
