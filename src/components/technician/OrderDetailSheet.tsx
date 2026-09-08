@@ -293,6 +293,7 @@ export function OrderDetailSheet({
           malf_end_date: toSapDate(now),
           malf_end_time: toSapTime(now),
           apontamentos: apontamentos as any,
+          sap_sync_status: "Pending",
         })
         .eq("id", order.id);
 
