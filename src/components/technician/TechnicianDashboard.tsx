@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailSheet } from "./OrderDetailSheet";
 import { Loader2, ClipboardList, CalendarIcon } from "lucide-react";
