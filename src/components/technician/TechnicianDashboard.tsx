@@ -21,12 +21,18 @@ export function TechnicianDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  const [machines, setMachines] = useState<{ id: string; sector_id: string | null }[]>([]);
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);
+
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [historyDate, setHistoryDate] = useState<Date | undefined>();
+  const [sectorFilter, setSectorFilter] = useState("all");
 
   useEffect(() => {
     fetchOrders();
+    fetchSectorData();
+
 
     const channel = supabase
       .channel("technician_orders")
