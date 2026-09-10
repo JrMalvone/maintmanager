@@ -267,7 +267,7 @@ export function MachinesTab() {
               <Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="Ex: WEG" />
             </div>
             <div className="space-y-2">
-              <Label>Setor</Label>
+              <Label>Setor *</Label>
               <Select value={sectorId} onValueChange={setSectorId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o setor" />
@@ -286,7 +286,7 @@ export function MachinesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !code.trim()}>
+            <Button onClick={handleSave} disabled={saving || !code.trim() || !sectorId}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
             </Button>
           </DialogFooter>
