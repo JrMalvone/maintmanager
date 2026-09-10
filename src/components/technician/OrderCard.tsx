@@ -61,11 +61,18 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
     if (order.machine_id) {
       supabase
         .from("machines")
-        .select("code, model")
+        .select("code, model, sector_id, sectors(name)")
         .eq("id", order.machine_id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data) setMachine(data);
+          if (data) {
+            const sector = (data as any).sectors;
+            setMachine({
+              code: data.code,
+              model: data.model,
+              sector_name: sector?.name || null,
+            });
+          }
         });
     }
 
