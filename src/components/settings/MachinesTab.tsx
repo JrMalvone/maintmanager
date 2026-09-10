@@ -81,7 +81,7 @@ export function MachinesTab() {
     setCode("");
     setModel("");
     setManufacturer("");
-    setSectorId("");
+    setSectorId(filterSector === "all" ? "" : filterSector);
     setStatus("active");
     setDialogOpen(true);
   }
