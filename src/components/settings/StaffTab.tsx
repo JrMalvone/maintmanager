@@ -63,6 +63,7 @@ export function StaffTab() {
   const [status, setStatus] = useState("active");
   const [preferredSectorId, setPreferredSectorId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [filterSector, setFilterSector] = useState("all");
 
   useEffect(() => {
     fetchData();
