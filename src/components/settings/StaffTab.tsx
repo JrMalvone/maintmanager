@@ -255,7 +255,7 @@ export function StaffTab() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Setor Preferido (opcional)</Label>
+              <Label>Setor *</Label>
               <Select value={preferredSectorId} onValueChange={setPreferredSectorId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Nenhum" />
@@ -274,7 +274,7 @@ export function StaffTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !name.trim() || !registrationNumber.trim()}>
+            <Button onClick={handleSave} disabled={saving || !name.trim() || !registrationNumber.trim() || !preferredSectorId}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
             </Button>
           </DialogFooter>
