@@ -94,6 +94,7 @@ export function TechnicianDashboard() {
   // History (closed), sorted newest first by finished_at, with optional date filter
   const closedOrders = orders
     .filter((o) => o.status === "closed")
+    .filter(matchesSector)
     .filter((o) => {
       if (!historyDate) return true;
       const createdDate = new Date(o.created_at);
