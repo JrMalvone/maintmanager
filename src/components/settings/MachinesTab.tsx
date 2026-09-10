@@ -59,6 +59,7 @@ export function MachinesTab() {
   const [sectorId, setSectorId] = useState("");
   const [status, setStatus] = useState("active");
   const [saving, setSaving] = useState(false);
+  const [filterSector, setFilterSector] = useState("all");
   const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
