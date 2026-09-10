@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailSheet } from "./OrderDetailSheet";
 import { Loader2, ClipboardList, CalendarIcon } from "lucide-react";
@@ -20,12 +21,18 @@ export function TechnicianDashboard() {
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  const [machines, setMachines] = useState<{ id: string; sector_id: string | null }[]>([]);
+  const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);
+
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [historyDate, setHistoryDate] = useState<Date | undefined>();
+  const [sectorFilter, setSectorFilter] = useState("all");
 
   useEffect(() => {
     fetchOrders();
+    fetchSectorData();
+
 
     const channel = supabase
       .channel("technician_orders")
@@ -50,6 +57,21 @@ export function TechnicianDashboard() {
     if (data) setOrders(data as ServiceOrder[]);
     setLoading(false);
   }
+
+  async function fetchSectorData() {
+    const [machinesRes, sectorsRes] = await Promise.all([
+      supabase.from("machines").select("id, sector_id"),
+      supabase.from("sectors").select("id, name").order("name"),
+    ]);
+    if (machinesRes.data) setMachines(machinesRes.data);
+    if (sectorsRes.data) setSectors(sectorsRes.data);
+  }
+
+  const machineSector = new Map(machines.map((m) => [m.id, m.sector_id]));
+  const matchesSector = (o: ServiceOrder) =>
+    sectorFilter === "all" ||
+    (o.machine_id ? machineSector.get(o.machine_id) === sectorFilter : false);
+
 
   function handleOrderClick(order: ServiceOrder) {
     setSelectedOrder(order);
