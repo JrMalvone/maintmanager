@@ -226,6 +226,17 @@ export function TechnicianDashboard() {
                   className="pl-10 h-10"
                 />
               </div>
+              <Select value={sectorFilter} onValueChange={setSectorFilter}>
+                <SelectTrigger className="w-full sm:w-[220px] h-10">
+                  <SelectValue placeholder="Todos os setores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os setores</SelectItem>
+                  {sectors.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="flex gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
