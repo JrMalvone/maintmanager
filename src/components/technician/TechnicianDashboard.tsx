@@ -81,6 +81,7 @@ export function TechnicianDashboard() {
   // Active orders (open + in_progress), sorted oldest first
   const activeOrders = orders
     .filter((o) => o.status === "open" || o.status === "in_progress")
+    .filter(matchesSector)
     .filter((o) =>
       searchQuery
         ? o.problem_description.toLowerCase().includes(searchQuery.toLowerCase())
