@@ -173,12 +173,25 @@ export function MachinesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-xl font-semibold">Máquinas</h2>
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Máquina
-        </Button>
+        <div className="flex gap-2">
+          <Select value={filterSector} onValueChange={setFilterSector}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Todos os setores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os setores</SelectItem>
+              {sectors.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Máquina
+          </Button>
+        </div>
       </div>
 
       <div className="industrial-card">
