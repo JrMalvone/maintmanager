@@ -16,6 +16,7 @@ interface OrderCardProps {
 interface MachineInfo {
   code: string;
   model: string | null;
+  sector_name: string | null;
 }
 
 function formatElapsed(totalMinutes: number): string {
