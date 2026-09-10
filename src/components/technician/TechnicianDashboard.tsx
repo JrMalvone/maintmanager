@@ -58,6 +58,21 @@ export function TechnicianDashboard() {
     setLoading(false);
   }
 
+  async function fetchSectorData() {
+    const [machinesRes, sectorsRes] = await Promise.all([
+      supabase.from("machines").select("id, sector_id"),
+      supabase.from("sectors").select("id, name").order("name"),
+    ]);
+    if (machinesRes.data) setMachines(machinesRes.data);
+    if (sectorsRes.data) setSectors(sectorsRes.data);
+  }
+
+  const machineSector = new Map(machines.map((m) => [m.id, m.sector_id]));
+  const matchesSector = (o: ServiceOrder) =>
+    sectorFilter === "all" ||
+    (o.machine_id ? machineSector.get(o.machine_id) === sectorFilter : false);
+
+
   function handleOrderClick(order: ServiceOrder) {
     setSelectedOrder(order);
     setSheetOpen(true);
