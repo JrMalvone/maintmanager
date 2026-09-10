@@ -97,7 +97,7 @@ export function MachinesTab() {
   }
 
   async function handleSave() {
-    if (!code.trim()) return;
+    if (!code.trim() || !sectorId) return;
     setSaving(true);
 
     const payload = {
