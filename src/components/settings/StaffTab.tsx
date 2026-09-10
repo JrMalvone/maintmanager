@@ -85,7 +85,7 @@ export function StaffTab() {
     setRegistrationNumber("");
     setSpecialty("mechanical");
     setStatus("active");
-    setPreferredSectorId("");
+    setPreferredSectorId(filterSector === "all" ? "" : filterSector);
     setDialogOpen(true);
   }
 
@@ -139,6 +139,9 @@ export function StaffTab() {
       fetchData();
     }
   }
+
+  const visibleStaff =
+    filterSector === "all" ? staff : staff.filter((s) => s.preferred_sector_id === filterSector);
 
   const getSectorName = (sectorId: string | null) => {
     if (!sectorId) return "—";
