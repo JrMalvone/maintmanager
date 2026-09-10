@@ -135,7 +135,7 @@ export function OrderDetailSheet({
   async function fetchMachine(machineId: string) {
     const { data } = await supabase
       .from("machines")
-      .select("*")
+      .select("*, sectors(name)")
       .eq("id", machineId)
       .maybeSingle();
 
