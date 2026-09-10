@@ -162,6 +162,9 @@ export function MachinesTab() {
     win.document.close();
   }
 
+  const visibleMachines =
+    filterSector === "all" ? machines : machines.filter((m) => m.sector_id === filterSector);
+
   const getSectorName = (sectorId: string | null) => {
     if (!sectorId) return "—";
     return sectors.find((s) => s.id === sectorId)?.name || "—";
