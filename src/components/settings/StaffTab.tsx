@@ -63,6 +63,7 @@ export function StaffTab() {
   const [status, setStatus] = useState("active");
   const [preferredSectorId, setPreferredSectorId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [filterSector, setFilterSector] = useState("all");
 
   useEffect(() => {
     fetchData();
@@ -84,7 +85,7 @@ export function StaffTab() {
     setRegistrationNumber("");
     setSpecialty("mechanical");
     setStatus("active");
-    setPreferredSectorId("");
+    setPreferredSectorId(filterSector === "all" ? "" : filterSector);
     setDialogOpen(true);
   }
 
@@ -139,6 +140,9 @@ export function StaffTab() {
     }
   }
 
+  const visibleStaff =
+    filterSector === "all" ? staff : staff.filter((s) => s.preferred_sector_id === filterSector);
+
   const getSectorName = (sectorId: string | null) => {
     if (!sectorId) return "—";
     return sectors.find((s) => s.id === sectorId)?.name || "—";
@@ -150,12 +154,25 @@ export function StaffTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-xl font-semibold">Equipe de Manutenção</h2>
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Funcionário
-        </Button>
+        <div className="flex gap-2">
+          <Select value={filterSector} onValueChange={setFilterSector}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Todos os setores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os setores</SelectItem>
+              {sectors.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Funcionário
+          </Button>
+        </div>
       </div>
 
       <div className="industrial-card">
@@ -171,14 +188,14 @@ export function StaffTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {staff.length === 0 ? (
+            {visibleStaff.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   Nenhum funcionário cadastrado
                 </TableCell>
               </TableRow>
             ) : (
-              staff.map((s) => (
+              visibleStaff.map((s) => (
                 <TableRow key={s.id} className={s.status === "inactive" ? "opacity-50" : ""}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell className="font-mono">{s.registration_number}</TableCell>
@@ -238,7 +255,7 @@ export function StaffTab() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Setor Preferido (opcional)</Label>
+              <Label>Setor *</Label>
               <Select value={preferredSectorId} onValueChange={setPreferredSectorId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Nenhum" />
@@ -257,7 +274,7 @@ export function StaffTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !name.trim() || !registrationNumber.trim()}>
+            <Button onClick={handleSave} disabled={saving || !name.trim() || !registrationNumber.trim() || !preferredSectorId}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
             </Button>
           </DialogFooter>

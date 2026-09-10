@@ -81,6 +81,7 @@ export function TechnicianDashboard() {
   // Active orders (open + in_progress), sorted oldest first
   const activeOrders = orders
     .filter((o) => o.status === "open" || o.status === "in_progress")
+    .filter(matchesSector)
     .filter((o) =>
       searchQuery
         ? o.problem_description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -93,6 +94,7 @@ export function TechnicianDashboard() {
   // History (closed), sorted newest first by finished_at, with optional date filter
   const closedOrders = orders
     .filter((o) => o.status === "closed")
+    .filter(matchesSector)
     .filter((o) => {
       if (!historyDate) return true;
       const createdDate = new Date(o.created_at);
@@ -150,14 +152,27 @@ export function TechnicianDashboard() {
         <TabsContent value="active" className="mt-6 space-y-6">
           {/* Search */}
           <div className="industrial-card p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por descrição..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-10"
-              />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por descrição..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-10"
+                />
+              </div>
+              <Select value={sectorFilter} onValueChange={setSectorFilter}>
+                <SelectTrigger className="w-full sm:w-[220px] h-10">
+                  <SelectValue placeholder="Todos os setores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os setores</SelectItem>
+                  {sectors.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -211,6 +226,17 @@ export function TechnicianDashboard() {
                   className="pl-10 h-10"
                 />
               </div>
+              <Select value={sectorFilter} onValueChange={setSectorFilter}>
+                <SelectTrigger className="w-full sm:w-[220px] h-10">
+                  <SelectValue placeholder="Todos os setores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os setores</SelectItem>
+                  {sectors.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="flex gap-2">
                 <Popover>
                   <PopoverTrigger asChild>

@@ -59,6 +59,7 @@ export function MachinesTab() {
   const [sectorId, setSectorId] = useState("");
   const [status, setStatus] = useState("active");
   const [saving, setSaving] = useState(false);
+  const [filterSector, setFilterSector] = useState("all");
   const qrRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,7 +81,7 @@ export function MachinesTab() {
     setCode("");
     setModel("");
     setManufacturer("");
-    setSectorId("");
+    setSectorId(filterSector === "all" ? "" : filterSector);
     setStatus("active");
     setDialogOpen(true);
   }
@@ -96,7 +97,7 @@ export function MachinesTab() {
   }
 
   async function handleSave() {
-    if (!code.trim()) return;
+    if (!code.trim() || !sectorId) return;
     setSaving(true);
 
     const payload = {
@@ -161,6 +162,9 @@ export function MachinesTab() {
     win.document.close();
   }
 
+  const visibleMachines =
+    filterSector === "all" ? machines : machines.filter((m) => m.sector_id === filterSector);
+
   const getSectorName = (sectorId: string | null) => {
     if (!sectorId) return "—";
     return sectors.find((s) => s.id === sectorId)?.name || "—";
@@ -172,12 +176,25 @@ export function MachinesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-xl font-semibold">Máquinas</h2>
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Máquina
-        </Button>
+        <div className="flex gap-2">
+          <Select value={filterSector} onValueChange={setFilterSector}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Todos os setores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os setores</SelectItem>
+              {sectors.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={openCreate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Máquina
+          </Button>
+        </div>
       </div>
 
       <div className="industrial-card">
@@ -192,14 +209,14 @@ export function MachinesTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {machines.length === 0 ? (
+            {visibleMachines.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   Nenhuma máquina cadastrada
                 </TableCell>
               </TableRow>
             ) : (
-              machines.map((machine) => (
+              visibleMachines.map((machine) => (
                 <TableRow key={machine.id} className={machine.status === "inactive" ? "opacity-50" : ""}>
                   <TableCell className="font-mono font-bold">{machine.code}</TableCell>
                   <TableCell>{machine.model || "—"}</TableCell>
@@ -250,7 +267,7 @@ export function MachinesTab() {
               <Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="Ex: WEG" />
             </div>
             <div className="space-y-2">
-              <Label>Setor</Label>
+              <Label>Setor *</Label>
               <Select value={sectorId} onValueChange={setSectorId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o setor" />
@@ -269,7 +286,7 @@ export function MachinesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={saving || !code.trim()}>
+            <Button onClick={handleSave} disabled={saving || !code.trim() || !sectorId}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar"}
             </Button>
           </DialogFooter>
