@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
 import { formatDateTime } from "@/lib/dateUtils";
 import { STATUS_LABELS } from "@/lib/constants";
-import { Clock, AlertTriangle, CheckCircle, Wrench, Users, User, Timer } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, Wrench, Users, User, Timer, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { differenceInMinutes } from "date-fns";
 import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
@@ -16,6 +16,7 @@ interface OrderCardProps {
 interface MachineInfo {
   code: string;
   model: string | null;
+  sector_name: string | null;
 }
 
 function formatElapsed(totalMinutes: number): string {
@@ -60,11 +61,18 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
     if (order.machine_id) {
       supabase
         .from("machines")
-        .select("code, model")
+        .select("code, model, sector_id, sectors(name)")
         .eq("id", order.machine_id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data) setMachine(data);
+          if (data) {
+            const sector = (data as any).sectors;
+            setMachine({
+              code: data.code,
+              model: data.model,
+              sector_name: sector?.name || null,
+            });
+          }
         });
     }
 
@@ -128,6 +136,16 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
           </div>
         </div>
       </div>
+
+      {/* Sector */}
+      {machine?.sector_name && (
+        <div className="flex items-center gap-1.5 mb-2">
+          <MapPin className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-semibold text-primary uppercase tracking-wide">
+            {machine.sector_name}
+          </span>
+        </div>
+      )}
 
       {/* Date & Time Opened */}
       <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">

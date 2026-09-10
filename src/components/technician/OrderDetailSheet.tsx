@@ -62,6 +62,7 @@ import {
   User,
   UserPlus,
   Sparkles,
+  MapPin,
 } from "lucide-react";
 import { differenceInMinutes } from "date-fns";
 
@@ -134,7 +135,7 @@ export function OrderDetailSheet({
   async function fetchMachine(machineId: string) {
     const { data } = await supabase
       .from("machines")
-      .select("*")
+      .select("*, sectors(name)")
       .eq("id", machineId)
       .maybeSingle();
 
@@ -466,6 +467,14 @@ export function OrderDetailSheet({
                   <p className="text-sm text-muted-foreground">
                     {machine.model} - {machine.manufacturer}
                   </p>
+                  {(machine as any).sectors?.name && (
+                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-semibold text-primary">
+                        {(machine as any).sectors.name}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
