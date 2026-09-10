@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
 import { formatDateTime } from "@/lib/dateUtils";
 import { STATUS_LABELS } from "@/lib/constants";
-import { Clock, AlertTriangle, CheckCircle, Wrench, Users, User, Timer } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, Wrench, Users, User, Timer, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { differenceInMinutes } from "date-fns";
 import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
