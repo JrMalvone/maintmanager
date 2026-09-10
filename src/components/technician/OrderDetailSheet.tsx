@@ -62,6 +62,7 @@ import {
   User,
   UserPlus,
   Sparkles,
+  MapPin,
 } from "lucide-react";
 import { differenceInMinutes } from "date-fns";
 
