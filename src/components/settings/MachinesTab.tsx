@@ -206,14 +206,14 @@ export function MachinesTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {machines.length === 0 ? (
+            {visibleMachines.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   Nenhuma máquina cadastrada
                 </TableCell>
               </TableRow>
             ) : (
-              machines.map((machine) => (
+              visibleMachines.map((machine) => (
                 <TableRow key={machine.id} className={machine.status === "inactive" ? "opacity-50" : ""}>
                   <TableCell className="font-mono font-bold">{machine.code}</TableCell>
                   <TableCell>{machine.model || "—"}</TableCell>
