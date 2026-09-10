@@ -137,6 +137,16 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
         </div>
       </div>
 
+      {/* Sector */}
+      {machine?.sector_name && (
+        <div className="flex items-center gap-1.5 mb-2">
+          <MapPin className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-semibold text-primary uppercase tracking-wide">
+            {machine.sector_name}
+          </span>
+        </div>
+      )}
+
       {/* Date & Time Opened */}
       <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
         <Clock className="w-3.5 h-3.5" />
