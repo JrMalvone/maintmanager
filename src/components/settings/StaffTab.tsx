@@ -188,14 +188,14 @@ export function StaffTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {staff.length === 0 ? (
+            {visibleStaff.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   Nenhum funcionário cadastrado
                 </TableCell>
               </TableRow>
             ) : (
-              staff.map((s) => (
+              visibleStaff.map((s) => (
                 <TableRow key={s.id} className={s.status === "inactive" ? "opacity-50" : ""}>
                   <TableCell className="font-medium">{s.name}</TableCell>
                   <TableCell className="font-mono">{s.registration_number}</TableCell>
