@@ -467,6 +467,14 @@ export function OrderDetailSheet({
                   <p className="text-sm text-muted-foreground">
                     {machine.model} - {machine.manufacturer}
                   </p>
+                  {(machine as any).sectors?.name && (
+                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border">
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-semibold text-primary">
+                        {(machine as any).sectors.name}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
