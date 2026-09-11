@@ -18,7 +18,7 @@ import { Search } from "lucide-react";
 export function TechnicianDashboard() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const [machines, setMachines] = useState<{ id: string; sector_id: string | null }[]>([]);
@@ -74,9 +74,14 @@ export function TechnicianDashboard() {
 
 
   function handleOrderClick(order: ServiceOrder) {
-    setSelectedOrder(order);
+    setSelectedOrderId(order.id);
     setSheetOpen(true);
   }
+
+  // Always derive the selected order from the latest fetched list so the
+  // detail sheet reflects updates (status, technician, SAP fields) immediately
+  const selectedOrder =
+    orders.find((o) => o.id === selectedOrderId) ?? null;
 
   // Active orders (open + in_progress), sorted oldest first
   const activeOrders = orders
