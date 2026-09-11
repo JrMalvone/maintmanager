@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder } from "@/hooks/useData";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailSheet } from "./OrderDetailSheet";
-import { Loader2, ClipboardList, CalendarIcon } from "lucide-react";
+import { SectorMultiSelect } from "./SectorMultiSelect";
+import { Loader2, ClipboardList, CalendarIcon, Factory } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ export function TechnicianDashboard() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [historyDate, setHistoryDate] = useState<Date | undefined>();
-  const [sectorFilter, setSectorFilter] = useState("all");
+  const [sectorIds, setSectorIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchOrders();
@@ -68,10 +68,19 @@ export function TechnicianDashboard() {
   }
 
   const machineSector = new Map(machines.map((m) => [m.id, m.sector_id]));
-  const matchesSector = (o: ServiceOrder) =>
-    sectorFilter === "all" ||
-    (o.machine_id ? machineSector.get(o.machine_id) === sectorFilter : false);
+  const sectorName = new Map(sectors.map((s) => [s.id, s.name]));
 
+  const orderSectorId = (o: ServiceOrder): string | null =>
+    o.machine_id ? machineSector.get(o.machine_id) ?? null : null;
+
+  const matchesSector = (o: ServiceOrder) =>
+    sectorIds.length === 0 ||
+    (orderSectorId(o) !== null && sectorIds.includes(orderSectorId(o)!));
+
+  const matchesSearch = (o: ServiceOrder) =>
+    searchQuery
+      ? o.problem_description.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
 
   function handleOrderClick(order: ServiceOrder) {
     setSelectedOrderId(order.id);
@@ -87,14 +96,7 @@ export function TechnicianDashboard() {
   const activeOrders = orders
     .filter((o) => o.status === "open" || o.status === "in_progress")
     .filter(matchesSector)
-    .filter((o) =>
-      searchQuery
-        ? o.problem_description.toLowerCase().includes(searchQuery.toLowerCase())
-        : true
-    );
-
-  const openOrders = activeOrders.filter((o) => o.status === "open");
-  const inProgressOrders = activeOrders.filter((o) => o.status === "in_progress");
+    .filter(matchesSearch);
 
   // History (closed), sorted newest first by finished_at, with optional date filter
   const closedOrders = orders
@@ -115,16 +117,156 @@ export function TechnicianDashboard() {
         : false;
       return matchesCreated || matchesFinished;
     })
-    .filter((o) =>
-      searchQuery
-        ? o.problem_description.toLowerCase().includes(searchQuery.toLowerCase())
-        : true
-    )
+    .filter(matchesSearch)
     .sort((a, b) => {
       const dateA = a.finished_at ? new Date(a.finished_at).getTime() : 0;
       const dateB = b.finished_at ? new Date(b.finished_at).getTime() : 0;
       return dateB - dateA;
     });
+
+  // Group helper: returns ordered list of [sectorLabel, orders]
+  function groupBySector(list: ServiceOrder[]): { id: string; name: string; orders: ServiceOrder[] }[] {
+    const groups: { id: string; name: string; orders: ServiceOrder[] }[] = [];
+    const byId = new Map<string, ServiceOrder[]>();
+    const noSector: ServiceOrder[] = [];
+
+    for (const order of list) {
+      const sid = orderSectorId(order);
+      if (!sid) {
+        noSector.push(order);
+        continue;
+      }
+      if (!byId.has(sid)) byId.set(sid, []);
+      byId.get(sid)!.push(order);
+    }
+
+    // Keep sectors in alphabetical order (sectors already sorted by name)
+    for (const sector of sectors) {
+      const sectorOrders = byId.get(sector.id);
+      if (sectorOrders && sectorOrders.length > 0) {
+        groups.push({ id: sector.id, name: sector.name, orders: sectorOrders });
+      }
+    }
+    // Sectors that may not be in the loaded list
+    for (const [sid, sectorOrders] of byId) {
+      if (!sectors.some((s) => s.id === sid)) {
+        groups.push({ id: sid, name: sectorName.get(sid) ?? "Setor desconhecido", orders: sectorOrders });
+      }
+    }
+    if (noSector.length > 0) {
+      groups.push({ id: "none", name: "Sem setor", orders: noSector });
+    }
+    return groups;
+  }
+
+  const activeGroups = groupBySector(activeOrders);
+  const closedGroups = groupBySector(closedOrders);
+
+  const activeOpenCount = activeOrders.filter((o) => o.status === "open").length;
+  const activeInProgressCount = activeOrders.filter((o) => o.status === "in_progress").length;
+
+  function renderSectorGroups(groups: { id: string; name: string; orders: ServiceOrder[] }[]) {
+    return groups.map((group) => {
+      const groupOpen = group.orders.filter((o) => o.status === "open");
+      const groupInProgress = group.orders.filter((o) => o.status === "in_progress");
+      const groupClosed = group.orders.filter((o) => o.status === "closed");
+
+      return (
+        <section key={group.id} className="space-y-4">
+          <div className="flex items-center gap-2 border-b border-border pb-2">
+            <Factory className="w-4 h-4 text-primary" />
+            <h2 className="text-lg font-bold tracking-tight uppercase">{group.name}</h2>
+            <span className="text-sm text-muted-foreground">({group.orders.length})</span>
+          </div>
+
+          {groupOpen.length > 0 && (
+            <div>
+              <h3 className="text-base font-semibold mb-3">
+                <span className="status-badge-open">Abertas ({groupOpen.length})</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {groupOpen.map((order) => (
+                  <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {groupInProgress.length > 0 && (
+            <div>
+              <h3 className="text-base font-semibold mb-3">
+                <span className="status-badge-progress">Em Andamento ({groupInProgress.length})</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {groupInProgress.map((order) => (
+                  <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {groupClosed.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {groupClosed.map((order) => (
+                <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
+              ))}
+            </div>
+          )}
+        </section>
+      );
+    });
+  }
+
+  const filterCard = (showDate: boolean) => (
+    <div className="industrial-card p-4">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por descrição..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 h-10"
+          />
+        </div>
+        <SectorMultiSelect sectors={sectors} selected={sectorIds} onChange={setSectorIds} />
+        {showDate && (
+          <div className="flex gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[200px] justify-start text-left font-normal h-10",
+                    !historyDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {historyDate
+                    ? format(historyDate, "dd/MM/yyyy", { locale: ptBR })
+                    : "Filtrar por data"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={historyDate}
+                  onSelect={setHistoryDate}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            {historyDate && (
+              <Button variant="ghost" size="sm" onClick={() => setHistoryDate(undefined)} className="h-10">
+                Limpar
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -146,7 +288,7 @@ export function TechnicianDashboard() {
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-2 h-12">
           <TabsTrigger value="active" className="h-10">
-            Ativas ({openOrders.length + inProgressOrders.length})
+            Ativas ({activeOpenCount + activeInProgressCount})
           </TabsTrigger>
           <TabsTrigger value="history" className="h-10">
             Histórico ({closedOrders.length})
@@ -154,62 +296,12 @@ export function TechnicianDashboard() {
         </TabsList>
 
         {/* Active Orders Tab */}
-        <TabsContent value="active" className="mt-6 space-y-6">
-          {/* Search */}
-          <div className="industrial-card p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por descrição..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-10"
-                />
-              </div>
-              <Select value={sectorFilter} onValueChange={setSectorFilter}>
-                <SelectTrigger className="w-full sm:w-[220px] h-10">
-                  <SelectValue placeholder="Todos os setores" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os setores</SelectItem>
-                  {sectors.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        <TabsContent value="active" className="mt-6 space-y-8">
+          {filterCard(false)}
 
-          {/* Open */}
-          {openOrders.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <span className="status-badge-open">Abertas ({openOrders.length})</span>
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {openOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* In Progress */}
-          {inProgressOrders.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <span className="status-badge-progress">Em Andamento ({inProgressOrders.length})</span>
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {inProgressOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {activeOrders.length === 0 && (
+          {activeOrders.length > 0 ? (
+            renderSectorGroups(activeGroups)
+          ) : (
             <div className="text-center py-12">
               <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">Nenhuma ordem ativa encontrada</p>
@@ -218,71 +310,11 @@ export function TechnicianDashboard() {
         </TabsContent>
 
         {/* History Tab */}
-        <TabsContent value="history" className="mt-6 space-y-6">
-          {/* Filters */}
-          <div className="industrial-card p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por descrição..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-10"
-                />
-              </div>
-              <Select value={sectorFilter} onValueChange={setSectorFilter}>
-                <SelectTrigger className="w-full sm:w-[220px] h-10">
-                  <SelectValue placeholder="Todos os setores" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os setores</SelectItem>
-                  {sectors.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-[200px] justify-start text-left font-normal h-10",
-                        !historyDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {historyDate
-                        ? format(historyDate, "dd/MM/yyyy", { locale: ptBR })
-                        : "Filtrar por data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={historyDate}
-                      onSelect={setHistoryDate}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-                {historyDate && (
-                  <Button variant="ghost" size="sm" onClick={() => setHistoryDate(undefined)} className="h-10">
-                    Limpar
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+        <TabsContent value="history" className="mt-6 space-y-8">
+          {filterCard(true)}
 
           {closedOrders.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {closedOrders.map((order) => (
-                <OrderCard key={order.id} order={order} onClick={() => handleOrderClick(order)} />
-              ))}
-            </div>
+            renderSectorGroups(closedGroups)
           ) : (
             <div className="text-center py-12">
               <ClipboardList className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
