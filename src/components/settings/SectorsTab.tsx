@@ -163,6 +163,8 @@ export function SectorsTab() {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Descrição</TableHead>
+              <TableHead>Centro Elétrica</TableHead>
+              <TableHead>Centro Mecânica</TableHead>
               <TableHead className="w-[120px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
