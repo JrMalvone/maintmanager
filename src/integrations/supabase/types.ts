@@ -123,18 +123,24 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          work_center_electronic: string | null
+          work_center_mechanical: string | null
         }
         Insert: {
           created_at?: string
           description?: string | null
           id?: string
           name: string
+          work_center_electronic?: string | null
+          work_center_mechanical?: string | null
         }
         Update: {
           created_at?: string
           description?: string | null
           id?: string
           name?: string
+          work_center_electronic?: string | null
+          work_center_mechanical?: string | null
         }
         Relationships: []
       }
