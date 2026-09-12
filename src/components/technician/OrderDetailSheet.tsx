@@ -630,12 +630,12 @@ export function OrderDetailSheet({
                   </p>
                 </div>
               )}
-              {order.started_at && order.finished_at && (
+              {order.finished_at && (
                 <div>
                   <Label className="text-muted-foreground text-xs">Tempo Máquina Parada</Label>
                   <p className="flex items-center gap-1 mt-1 font-bold">
                     <Wrench className="w-4 h-4" />
-                    {calculateDuration(order.started_at, order.finished_at)}
+                    {calculateDuration(order.created_at, order.finished_at)}
                   </p>
                 </div>
               )}
