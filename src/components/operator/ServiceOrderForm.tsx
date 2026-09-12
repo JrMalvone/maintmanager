@@ -76,17 +76,20 @@ export function ServiceOrderForm() {
       const machine = machines.find((m) => m.id === machineId);
       const machineCode = machine?.code || "";
 
-      // Build work_center from sector abbreviation, not machine code
-      let sectorAbbrev = "";
-      if (machine?.sector_id) {
-        const sector = sectors.find((s) => s.id === machine.sector_id);
-        if (sector) {
-          // Use first 3 chars uppercase as abbreviation
-          sectorAbbrev = sector.name.slice(0, 3).toUpperCase();
-        }
-      }
+      // work_center comes from the sector configuration (Settings)
+      const sector = machine?.sector_id
+        ? sectors.find((s) => s.id === machine.sector_id)
+        : undefined;
+      const configuredWorkCenter =
+        maintenanceType === "electronic"
+          ? sector?.work_center_electronic
+          : sector?.work_center_mechanical;
+
       const workCenterSuffix = maintenanceType === "electronic" ? "ELT" : "MEC";
-      const workCenter = sectorAbbrev ? `${sectorAbbrev}-${workCenterSuffix}` : workCenterSuffix;
+      const fallbackAbbrev = sector ? sector.name.slice(0, 3).toUpperCase() : "";
+      const workCenter =
+        configuredWorkCenter?.trim() ||
+        (fallbackAbbrev ? `${fallbackAbbrev}-${workCenterSuffix}` : workCenterSuffix);
 
       const { error } = await supabase.from("service_orders").insert({
         machine_id: machineId,
