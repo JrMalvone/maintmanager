@@ -214,6 +214,30 @@ export function SectorsTab() {
               <Label>Descrição</Label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição opcional" />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Centro de Trabalho — Elétrica</Label>
+                <Input
+                  value={wcElectronic}
+                  onChange={(e) => setWcElectronic(e.target.value)}
+                  placeholder="Ex: RIF-ELT"
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Centro de Trabalho — Mecânica</Label>
+                <Input
+                  value={wcMechanical}
+                  onChange={(e) => setWcMechanical(e.target.value)}
+                  placeholder="Ex: RIF-MEC"
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estes códigos são enviados no campo <span className="font-mono">work_center</span> das ordens deste setor,
+              conforme o tipo de manutenção.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
