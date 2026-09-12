@@ -171,7 +171,7 @@ export function SectorsTab() {
           <TableBody>
             {sectors.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   Nenhum setor cadastrado
                 </TableCell>
               </TableRow>
