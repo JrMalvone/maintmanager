@@ -48,6 +48,8 @@ export function SectorsTab() {
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [wcElectronic, setWcElectronic] = useState("");
+  const [wcMechanical, setWcMechanical] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
