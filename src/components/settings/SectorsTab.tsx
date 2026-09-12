@@ -180,6 +180,8 @@ export function SectorsTab() {
                 <TableRow key={sector.id}>
                   <TableCell className="font-medium">{sector.name}</TableCell>
                   <TableCell className="text-muted-foreground">{sector.description || "—"}</TableCell>
+                  <TableCell className="font-mono">{sector.work_center_electronic || "—"}</TableCell>
+                  <TableCell className="font-mono">{sector.work_center_mechanical || "—"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(sector)}>
