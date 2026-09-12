@@ -67,6 +67,8 @@ export function SectorsTab() {
     setSelectedSector(null);
     setName("");
     setDescription("");
+    setWcElectronic("");
+    setWcMechanical("");
     setDialogOpen(true);
   }
 
@@ -74,6 +76,8 @@ export function SectorsTab() {
     setSelectedSector(sector);
     setName(sector.name);
     setDescription(sector.description || "");
+    setWcElectronic(sector.work_center_electronic || "");
+    setWcMechanical(sector.work_center_mechanical || "");
     setDialogOpen(true);
   }
 
@@ -81,18 +85,23 @@ export function SectorsTab() {
     if (!name.trim()) return;
     setSaving(true);
 
+    const payload = {
+      name: name.trim(),
+      description: description.trim() || null,
+      work_center_electronic: wcElectronic.trim().toUpperCase() || null,
+      work_center_mechanical: wcMechanical.trim().toUpperCase() || null,
+    };
+
     try {
       if (selectedSector) {
         const { error } = await supabase
           .from("sectors")
-          .update({ name: name.trim(), description: description.trim() || null })
+          .update(payload)
           .eq("id", selectedSector.id);
         if (error) throw error;
         toast({ title: "Setor atualizado" });
       } else {
-        const { error } = await supabase
-          .from("sectors")
-          .insert({ name: name.trim(), description: description.trim() || null });
+        const { error } = await supabase.from("sectors").insert(payload);
         if (error) throw error;
         toast({ title: "Setor criado" });
       }
