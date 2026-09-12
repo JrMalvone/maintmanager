@@ -35,6 +35,8 @@ interface Sector {
   id: string;
   name: string;
   description: string | null;
+  work_center_electronic: string | null;
+  work_center_mechanical: string | null;
 }
 
 export function SectorsTab() {
@@ -46,6 +48,8 @@ export function SectorsTab() {
   const [selectedSector, setSelectedSector] = useState<Sector | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [wcElectronic, setWcElectronic] = useState("");
+  const [wcMechanical, setWcMechanical] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
@@ -63,6 +67,8 @@ export function SectorsTab() {
     setSelectedSector(null);
     setName("");
     setDescription("");
+    setWcElectronic("");
+    setWcMechanical("");
     setDialogOpen(true);
   }
 
@@ -70,6 +76,8 @@ export function SectorsTab() {
     setSelectedSector(sector);
     setName(sector.name);
     setDescription(sector.description || "");
+    setWcElectronic(sector.work_center_electronic || "");
+    setWcMechanical(sector.work_center_mechanical || "");
     setDialogOpen(true);
   }
 
@@ -77,18 +85,23 @@ export function SectorsTab() {
     if (!name.trim()) return;
     setSaving(true);
 
+    const payload = {
+      name: name.trim(),
+      description: description.trim() || null,
+      work_center_electronic: wcElectronic.trim().toUpperCase() || null,
+      work_center_mechanical: wcMechanical.trim().toUpperCase() || null,
+    };
+
     try {
       if (selectedSector) {
         const { error } = await supabase
           .from("sectors")
-          .update({ name: name.trim(), description: description.trim() || null })
+          .update(payload)
           .eq("id", selectedSector.id);
         if (error) throw error;
         toast({ title: "Setor atualizado" });
       } else {
-        const { error } = await supabase
-          .from("sectors")
-          .insert({ name: name.trim(), description: description.trim() || null });
+        const { error } = await supabase.from("sectors").insert(payload);
         if (error) throw error;
         toast({ title: "Setor criado" });
       }
@@ -150,13 +163,15 @@ export function SectorsTab() {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Descrição</TableHead>
+              <TableHead>Centro Elétrica</TableHead>
+              <TableHead>Centro Mecânica</TableHead>
               <TableHead className="w-[120px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sectors.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                   Nenhum setor cadastrado
                 </TableCell>
               </TableRow>
@@ -165,6 +180,8 @@ export function SectorsTab() {
                 <TableRow key={sector.id}>
                   <TableCell className="font-medium">{sector.name}</TableCell>
                   <TableCell className="text-muted-foreground">{sector.description || "—"}</TableCell>
+                  <TableCell className="font-mono">{sector.work_center_electronic || "—"}</TableCell>
+                  <TableCell className="font-mono">{sector.work_center_mechanical || "—"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(sector)}>
@@ -197,6 +214,30 @@ export function SectorsTab() {
               <Label>Descrição</Label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição opcional" />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Centro de Trabalho — Elétrica</Label>
+                <Input
+                  value={wcElectronic}
+                  onChange={(e) => setWcElectronic(e.target.value)}
+                  placeholder="Ex: RIF-ELT"
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Centro de Trabalho — Mecânica</Label>
+                <Input
+                  value={wcMechanical}
+                  onChange={(e) => setWcMechanical(e.target.value)}
+                  placeholder="Ex: RIF-MEC"
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estes códigos são enviados no campo <span className="font-mono">work_center</span> das ordens deste setor,
+              conforme o tipo de manutenção.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

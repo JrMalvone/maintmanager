@@ -5,6 +5,8 @@ interface Sector {
   id: string;
   name: string;
   description: string | null;
+  work_center_electronic?: string | null;
+  work_center_mechanical?: string | null;
 }
 
 interface Machine {
