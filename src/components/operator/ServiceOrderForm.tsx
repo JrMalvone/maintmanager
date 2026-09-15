@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { z } from "zod";
 import { useSectors, useMachines } from "@/hooks/useData";
 import { supabase } from "@/integrations/supabase/client";
 import { toSapDate, toSapTime } from "@/lib/sapFormat";
@@ -26,6 +27,22 @@ import {
 } from "lucide-react";
 
 type MaintenanceType = "electronic" | "mechanical";
+
+const orderSchema = z.object({
+  openerName: z
+    .string()
+    .min(2, "Informe o nome completo do operador (mín. 2 caracteres)")
+    .max(120, "O nome do operador deve ter no máximo 120 caracteres"),
+  openerRegistry: z
+    .string()
+    .min(1, "Informe a matrícula")
+    .max(40, "A matrícula deve ter no máximo 40 caracteres"),
+  problemDescription: z
+    .string()
+    .min(3, "Descreva o problema com pelo menos 3 caracteres")
+    .max(2000, "A descrição do problema deve ter no máximo 2000 caracteres"),
+  maintenanceType: z.enum(["electronic", "mechanical"]),
+});
 
 export function ServiceOrderForm() {
   const { sectors, loading: sectorsLoading } = useSectors();
@@ -64,6 +81,22 @@ export function ServiceOrderForm() {
       toast({
         title: "Máquina obrigatória",
         description: "Selecione a máquina com defeito",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validation = orderSchema.safeParse({
+      openerName: openerName.trim(),
+      openerRegistry: openerRegistry.trim(),
+      problemDescription: problemDescription.trim(),
+      maintenanceType,
+    });
+
+    if (!validation.success) {
+      toast({
+        title: "Dados inválidos",
+        description: validation.error.issues[0].message,
         variant: "destructive",
       });
       return;
