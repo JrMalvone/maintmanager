@@ -54,7 +54,7 @@ export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTabl
 
     events.sort((a, b) => b.downtimeMinutes - a.downtimeMinutes);
     return events;
-  }, [orders, machineMap]);
+  }, [orders, machineMap, day]);
 
   function formatDuration(minutes: number): string {
     const h = Math.floor(minutes / 60);
