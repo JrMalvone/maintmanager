@@ -35,6 +35,7 @@ export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTabl
     const events: CriticalEvent[] = [];
 
     for (const order of orders) {
+      if (day && !isSameDay(new Date(order.created_at), day)) continue;
       const start = new Date(order.created_at);
       const end = order.finished_at ? new Date(order.finished_at) : now;
       const downtimeMinutes = (end.getTime() - start.getTime()) / 60000;
