@@ -1,7 +1,13 @@
 import type { ServiceOrder, Machine } from "@/hooks/useData";
 import { formatDateTime } from "@/lib/dateUtils";
-import { AlertTriangle, Clock } from "lucide-react";
-import { useMemo } from "react";
+import { AlertTriangle, Clock, CalendarIcon, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, isSameDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface CriticalDowntimeTableProps {
   orders: ServiceOrder[];
