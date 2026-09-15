@@ -149,6 +149,7 @@ export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTabl
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }
