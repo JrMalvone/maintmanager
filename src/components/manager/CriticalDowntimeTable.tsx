@@ -62,17 +62,48 @@ export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTabl
     return `${h}h ${m}min`;
   }
 
-  if (criticalEvents.length === 0) {
-    return null;
-  }
-
   return (
     <div className="industrial-card p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <AlertTriangle className="w-5 h-5 text-destructive" />
-        <h3 className="text-lg font-semibold">Critical Downtimes (Over 3 Hours)</h3>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-destructive" />
+          <h3 className="text-lg font-semibold">Paradas Acima de 3 Horas</h3>
+        </div>
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("justify-start text-left font-normal", day && "border-primary text-primary")}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {day ? format(day, "dd/MM/yyyy", { locale: ptBR }) : "Filtrar por dia"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={day}
+                onSelect={setDay}
+                locale={ptBR}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+          {day && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDay(undefined)}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
+      {criticalEvents.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          Nenhuma parada acima de 3 horas no período selecionado.
+        </p>
+      ) : (
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
