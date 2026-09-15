@@ -22,6 +22,8 @@ interface CriticalEvent {
 }
 
 export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTableProps) {
+  const [day, setDay] = useState<Date | undefined>(undefined);
+
   const machineMap = useMemo(() => {
     const map = new Map<string, Machine>();
     machines.forEach((m) => map.set(m.id, m));
