@@ -6,7 +6,7 @@ import { KPICards } from "./KPICards";
 import { BacklogChart } from "./BacklogChart";
 import { ParetoChart } from "./ParetoChart";
 import { TechnicianPerformance } from "./TechnicianPerformance";
-import { OrderHistory } from "./OrderHistory";
+
 import { CriticalDowntimeTable } from "./CriticalDowntimeTable";
 import { DowntimeChart } from "./DowntimeChart";
 import { DefectDonutChart } from "./DefectDonutChart";
@@ -99,7 +99,6 @@ export function ManagerDashboard() {
       </div>
 
       <TechnicianPerformance workLogs={workLogs} />
-      <OrderHistory orders={orders} />
       <CriticalDowntimeTable orders={orders} machines={machines} />
     </div>
   );
