@@ -75,7 +75,12 @@ serve(async (req) => {
       }
 
       const userKey = user.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const normalizedKey = userKey === "manutencao" ? "manutenção" : userKey;
+      const accentMap: Record<string, string> = {
+        "manutencao": "manutenção",
+        "producao": "produção",
+        "operador": "produção", // legado: usuário antigo continua funcionando
+      };
+      const normalizedKey = accentMap[userKey] ?? userKey;
       const credentials = HASHED_CREDENTIALS[normalizedKey];
 
       if (!credentials) {
