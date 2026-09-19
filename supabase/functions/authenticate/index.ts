@@ -91,7 +91,7 @@ serve(async (req) => {
       
       // Simple password validation (replace with bcrypt in production)
       const validPasswords: Record<string, string> = {
-        "operador": "123",
+        "produção": "opera20990",
         "manutenção": "manut26273",
         "gestor": "sup24496",
       };
