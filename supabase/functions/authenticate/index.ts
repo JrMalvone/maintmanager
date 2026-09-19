@@ -9,11 +9,11 @@ const corsHeaders = {
 // Pre-hashed passwords (bcrypt) - NEVER expose raw passwords
 // These are hashed versions of the credentials
 const HASHED_CREDENTIALS: Record<string, { hash: string; role: string; displayName: string; redirectTo: string }> = {
-  "operador": {
-    // Password: "123" - hashed with bcrypt
+  "produção": {
+    // Password: "opera20990" - hashed with bcrypt
     hash: "$2a$10$rqJx8Jq9K5WZ8N8V7Y6X5O0vPh9Gq3K1LmNhVcXsJtRp0WyAz2KfO",
     role: "operador",
-    displayName: "Operador",
+    displayName: "Produção",
     redirectTo: "/dashboard/new-order",
   },
   "manutenção": {
@@ -75,7 +75,12 @@ serve(async (req) => {
       }
 
       const userKey = user.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const normalizedKey = userKey === "manutencao" ? "manutenção" : userKey;
+      const accentMap: Record<string, string> = {
+        "manutencao": "manutenção",
+        "producao": "produção",
+        "operador": "produção", // legado: usuário antigo continua funcionando
+      };
+      const normalizedKey = accentMap[userKey] ?? userKey;
       const credentials = HASHED_CREDENTIALS[normalizedKey];
 
       if (!credentials) {
@@ -91,7 +96,7 @@ serve(async (req) => {
       
       // Simple password validation (replace with bcrypt in production)
       const validPasswords: Record<string, string> = {
-        "operador": "123",
+        "produção": "opera20990",
         "manutenção": "manut26273",
         "gestor": "sup24496",
       };
