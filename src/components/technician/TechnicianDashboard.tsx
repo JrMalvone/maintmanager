@@ -4,7 +4,7 @@ import type { ServiceOrder } from "@/hooks/useData";
 import { OrderCard } from "./OrderCard";
 import { OrderDetailSheet } from "./OrderDetailSheet";
 import { SectorMultiSelect } from "./SectorMultiSelect";
-import { Loader2, ClipboardList, CalendarIcon, Factory } from "lucide-react";
+import { Loader2, ClipboardList, CalendarIcon, Factory, MonitorUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,10 @@ export function TechnicianDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [historyDate, setHistoryDate] = useState<Date | undefined>();
   const [sectorIds, setSectorIds] = useState<string[]>([]);
+
+  // Show the "open in new window" button only inside the desktop (Electron) app
+  const isElectron =
+    typeof navigator !== "undefined" && navigator.userAgent.includes("Electron");
 
   useEffect(() => {
     fetchOrders();
@@ -278,11 +282,23 @@ export function TechnicianDashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Ordens de Serviço</h1>
-        <p className="text-muted-foreground mt-2">
-          Gerencie as ordens de manutenção da fábrica
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Ordens de Serviço</h1>
+          <p className="text-muted-foreground mt-2">
+            Gerencie as ordens de manutenção da fábrica
+          </p>
+        </div>
+        {isElectron && (
+          <Button
+            variant="outline"
+            className="shrink-0 h-11"
+            onClick={() => window.open(window.location.href, "_blank")}
+          >
+            <MonitorUp className="w-4 h-4 mr-2" />
+            Abrir em novo monitor
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="active" className="w-full">

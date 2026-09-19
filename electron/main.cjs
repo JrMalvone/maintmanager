@@ -17,8 +17,26 @@ function createWindow() {
 
   win.setMenuBarVisibility(false);
 
-  // Open external links in the user's default browser instead of a new window
+  // Allow opening app pages in a second window (e.g. Orders on another monitor);
+  // external links still go to the user's default browser
   win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("file://")) {
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          width: 1440,
+          height: 900,
+          minWidth: 1024,
+          minHeight: 700,
+          backgroundColor: "#0b0f14",
+          autoHideMenuBar: true,
+          webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+          },
+        },
+      };
+    }
     shell.openExternal(url);
     return { action: "deny" };
   });
