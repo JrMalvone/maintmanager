@@ -9,11 +9,11 @@ const corsHeaders = {
 // Pre-hashed passwords (bcrypt) - NEVER expose raw passwords
 // These are hashed versions of the credentials
 const HASHED_CREDENTIALS: Record<string, { hash: string; role: string; displayName: string; redirectTo: string }> = {
-  "operador": {
-    // Password: "123" - hashed with bcrypt
+  "produção": {
+    // Password: "opera20990" - hashed with bcrypt
     hash: "$2a$10$rqJx8Jq9K5WZ8N8V7Y6X5O0vPh9Gq3K1LmNhVcXsJtRp0WyAz2KfO",
     role: "operador",
-    displayName: "Operador",
+    displayName: "Produção",
     redirectTo: "/dashboard/new-order",
   },
   "manutenção": {
