@@ -235,11 +235,19 @@ export function OrderDetailSheet({
 
     try {
       const sector = (machine as Machine & {
-        sectors?: { work_center_electronic?: string | null; work_center_mechanical?: string | null } | null;
+        sectors?: {
+          name?: string | null;
+          work_center_electronic?: string | null;
+          work_center_mechanical?: string | null;
+        } | null;
       } | null)?.sectors;
       const configuredWorkCenter = editMaintenanceType === "electronic"
         ? sector?.work_center_electronic
         : sector?.work_center_mechanical;
+      const workCenterSuffix = editMaintenanceType === "electronic" ? "ELT" : "MEC";
+      const fallbackAbbrev = sector?.name?.slice(0, 3).toUpperCase();
+      const workCenter = configuredWorkCenter?.trim()
+        || (fallbackAbbrev ? `${fallbackAbbrev}-${workCenterSuffix}` : workCenterSuffix);
 
       const { error } = await supabase
         .from("service_orders")
@@ -248,7 +256,7 @@ export function OrderDetailSheet({
           maintenance_type: editMaintenanceType,
           is_machine_stopped: editMachineStopped,
           is_breakdown: editMachineStopped,
-          ...(configuredWorkCenter?.trim() ? { work_center: configuredWorkCenter.trim() } : {}),
+          work_center: workCenter,
           sap_sync_status: "Pending",
         })
         .eq("id", order.id);
