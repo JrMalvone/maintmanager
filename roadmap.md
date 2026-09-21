@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Adicionar centro de trabalho obrigatório por atuação no banco
+- [x] Adicionar centro de trabalho obrigatório por atuação no banco
 - [ ] Calcular e registrar o centro ao iniciar o trabalho
 - [ ] Incluir o centro nos apontamentos SAP e na conferência visual
 - [ ] Validar banco, tipos e fluxo de fechamento

@@ -105,6 +105,9 @@ export function ActiveTeamPanel({ workLogs, orderId, onUpdate }: ActiveTeamPanel
                     {log.technician_registry}
                   </p>
                 )}
+                <p className="text-xs font-medium text-primary">
+                  Centro: {log.work_center}
+                </p>
               </div>
             </div>
 

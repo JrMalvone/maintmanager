@@ -6,6 +6,7 @@ export interface WorkLog {
   order_id: string;
   technician_name: string;
   technician_registry: string | null;
+  work_center: string;
   started_at: string;
   ended_at: string | null;
   duration_minutes: number | null;

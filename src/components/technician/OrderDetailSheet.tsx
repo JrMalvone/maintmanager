@@ -84,6 +84,12 @@ interface StaffMember {
   specialty: string;
 }
 
+interface MachineSectorConfig {
+  name?: string | null;
+  work_center_electronic?: string | null;
+  work_center_mechanical?: string | null;
+}
+
 export function OrderDetailSheet({
   order,
   open,
@@ -174,6 +180,25 @@ export function OrderDetailSheet({
     const staff = staffList.find((s) => s.id === selectedStaffId);
     if (!staff) return;
 
+    const sector = (machine as Machine & { sectors?: MachineSectorConfig | null } | null)?.sectors;
+    const staffMaintenanceType = staff.specialty === "both"
+      ? order.maintenance_type
+      : staff.specialty;
+    const workCenter = staffMaintenanceType === "electronic"
+      ? sector?.work_center_electronic?.trim()
+      : staffMaintenanceType === "mechanical"
+        ? sector?.work_center_mechanical?.trim()
+        : undefined;
+
+    if (!workCenter) {
+      toast({
+        title: "Centro de trabalho não configurado",
+        description: "Configure no setor o centro correspondente à especialidade deste trabalhador.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -183,6 +208,7 @@ export function OrderDetailSheet({
         order_id: order.id,
         technician_name: staff.name,
         technician_registry: staff.registration_number,
+        work_center: workCenter,
         started_at: now,
       });
 
@@ -308,9 +334,10 @@ export function OrderDetailSheet({
 
       const apontamentos: SapApontamento[] = allLogs.map((log) => {
         const start = new Date(log.started_at);
-        const end = new Date(log.ended_at!);
+        const end = new Date(log.ended_at || now.toISOString());
         return buildApontamento(
           log.technician_registry || log.technician_name,
+          log.work_center,
           start,
           end,
           solutionDescription.trim()
