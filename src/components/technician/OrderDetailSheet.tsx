@@ -35,7 +35,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useAppAuth } from "@/hooks/useAppAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -89,6 +91,7 @@ export function OrderDetailSheet({
   onUpdate,
 }: OrderDetailSheetProps) {
   const { toast } = useToast();
+  const { role } = useAppAuth();
   const [machine, setMachine] = useState<Machine | null>(null);
   const [loading, setLoading] = useState(false);
   const [solutionDescription, setSolutionDescription] = useState("");
@@ -114,6 +117,8 @@ export function OrderDetailSheet({
   const [editMode, setEditMode] = useState(false);
   const [editDescription, setEditDescription] = useState("");
   const [editMaintenanceType, setEditMaintenanceType] = useState<MaintenanceType>("mechanical");
+  const [editMachineStopped, setEditMachineStopped] = useState(false);
+  const canEditOrder = role === "manutencao" || role === "gestor";
 
   useEffect(() => {
     if (order?.machine_id) {
@@ -122,6 +127,8 @@ export function OrderDetailSheet({
     if (order) {
       setEditDescription(order.problem_description);
       setEditMaintenanceType(order.maintenance_type || "mechanical");
+      setEditMachineStopped(order.is_machine_stopped);
+      setEditMode(false);
     }
   }, [order?.machine_id, order]);
 
@@ -135,7 +142,7 @@ export function OrderDetailSheet({
   async function fetchMachine(machineId: string) {
     const { data } = await supabase
       .from("machines")
-      .select("*, sectors(name)")
+      .select("*, sectors(name, work_center_electronic, work_center_mechanical)")
       .eq("id", machineId)
       .maybeSingle();
 
@@ -216,14 +223,41 @@ export function OrderDetailSheet({
 
   async function saveEdits() {
     if (!order) return;
+    if (!canEditOrder) {
+      toast({ title: "Sem permissão", description: "Apenas Manutenção e Gestor podem editar a ordem", variant: "destructive" });
+      return;
+    }
+    if (!editDescription.trim()) {
+      toast({ title: "Descrição obrigatória", description: "Informe a descrição do problema", variant: "destructive" });
+      return;
+    }
     setLoading(true);
 
     try {
+      const sector = (machine as Machine & {
+        sectors?: {
+          name?: string | null;
+          work_center_electronic?: string | null;
+          work_center_mechanical?: string | null;
+        } | null;
+      } | null)?.sectors;
+      const configuredWorkCenter = editMaintenanceType === "electronic"
+        ? sector?.work_center_electronic
+        : sector?.work_center_mechanical;
+      const workCenterSuffix = editMaintenanceType === "electronic" ? "ELT" : "MEC";
+      const fallbackAbbrev = sector?.name?.slice(0, 3).toUpperCase();
+      const workCenter = configuredWorkCenter?.trim()
+        || (fallbackAbbrev ? `${fallbackAbbrev}-${workCenterSuffix}` : workCenterSuffix);
+
       const { error } = await supabase
         .from("service_orders")
         .update({
           problem_description: editDescription.trim(),
           maintenance_type: editMaintenanceType,
+          is_machine_stopped: editMachineStopped,
+          is_breakdown: editMachineStopped,
+          work_center: workCenter,
+          sap_sync_status: "Pending",
         })
         .eq("id", order.id);
 
@@ -483,7 +517,7 @@ export function OrderDetailSheet({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-muted-foreground">Problema Reportado</Label>
-                {(order.status === "open" || order.status === "in_progress") && !editMode && (
+                {canEditOrder && !editMode && (
                   <Button variant="ghost" size="sm" onClick={() => setEditMode(true)} className="text-primary">
                     <Pencil className="w-4 h-4 mr-1" />
                     Editar
@@ -530,6 +564,20 @@ export function OrderDetailSheet({
                       </Label>
                     </RadioGroup>
                   </div>
+                  <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="edit-machine-stopped">Status da Máquina</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {editMachineStopped ? "Máquina parada" : "Máquina em operação"}
+                      </p>
+                    </div>
+                    <Switch
+                      id="edit-machine-stopped"
+                      checked={editMachineStopped}
+                      onCheckedChange={setEditMachineStopped}
+                      aria-label="Alterar status da máquina"
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -537,6 +585,7 @@ export function OrderDetailSheet({
                         setEditMode(false);
                         setEditDescription(order.problem_description);
                         setEditMaintenanceType(order.maintenance_type || "mechanical");
+                         setEditMachineStopped(order.is_machine_stopped);
                       }}
                     >
                       Cancelar
