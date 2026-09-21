@@ -276,6 +276,7 @@ export type Database = {
           started_at: string
           technician_name: string
           technician_registry: string | null
+          work_center: string
         }
         Insert: {
           created_at?: string
@@ -286,6 +287,7 @@ export type Database = {
           started_at?: string
           technician_name: string
           technician_registry?: string | null
+          work_center: string
         }
         Update: {
           created_at?: string
@@ -296,6 +298,7 @@ export type Database = {
           started_at?: string
           technician_name?: string
           technician_registry?: string | null
+          work_center?: string
         }
         Relationships: [
           {

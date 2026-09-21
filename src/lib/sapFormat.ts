@@ -35,6 +35,7 @@ export function toSapHours(start: Date, end: Date): string {
 
 export interface SapApontamento {
   matricula: string;
+  centro_trabalho: string;
   data_ini: string;
   hora_ini: string;
   data_fim: string;
@@ -48,12 +49,14 @@ export interface SapApontamento {
  */
 export function buildApontamento(
   registry: string,
+  workCenter: string,
   startedAt: Date,
   endedAt: Date,
   serviceText: string
 ): SapApontamento {
   return {
     matricula: registry,
+    centro_trabalho: workCenter,
     data_ini: toSapDate(startedAt),
     hora_ini: toSapTime(startedAt),
     data_fim: toSapDate(endedAt),

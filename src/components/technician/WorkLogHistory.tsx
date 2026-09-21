@@ -52,6 +52,9 @@ export function WorkLogHistory({ workLogs }: WorkLogHistoryProps) {
                     {log.technician_registry}
                   </p>
                 )}
+                <p className="text-xs font-medium text-primary">
+                  Centro: {log.work_center}
+                </p>
               </div>
             </div>
 
