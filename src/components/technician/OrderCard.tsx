@@ -242,11 +242,11 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
 
         <div
           className={cn(
-            "flex items-center gap-1 font-mono text-xs font-bold",
+            "flex items-center gap-1.5 font-mono text-xl font-bold leading-none",
             getElapsedColorClass(elapsedMin)
           )}
         >
-          <Timer className="w-3.5 h-3.5" />
+          <Timer className="w-5 h-5" />
           <span>{formatElapsed(elapsedMin)}</span>
         </div>
       </div>
