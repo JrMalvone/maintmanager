@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">maintmanager</string>
+    <string name="title_activity_main">maintmanager</string>
+    <string name="package_name">app.lovable.aee8513a20b74d2fbcfc37771c3f9639</string>
+    <string name="custom_url_scheme">app.lovable.aee8513a20b74d2fbcfc37771c3f9639</string>
+</resources>
