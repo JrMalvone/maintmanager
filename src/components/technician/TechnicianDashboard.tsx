@@ -222,15 +222,15 @@ export function TechnicianDashboard() {
   }
 
   const filterCard = (showDate: boolean) => (
-    <div className="industrial-card p-2.5 sm:p-3">
-      <div className="flex flex-col sm:flex-row gap-2">
+    <div className="industrial-card p-2">
+      <div className="flex flex-col sm:flex-row gap-1.5">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por descrição..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 sm:h-9"
+            className="pl-9 h-9 sm:h-8 text-sm"
           />
         </div>
         <SectorMultiSelect sectors={sectors} selected={sectorIds} onChange={setSectorIds} />
@@ -241,7 +241,7 @@ export function TechnicianDashboard() {
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full sm:w-[180px] justify-start text-left font-normal h-10 sm:h-9",
+                    "w-full sm:w-[170px] justify-start text-left font-normal h-9 sm:h-8 text-sm",
                     !historyDate && "text-muted-foreground"
                   )}
                 >
@@ -262,7 +262,7 @@ export function TechnicianDashboard() {
               </PopoverContent>
             </Popover>
             {historyDate && (
-              <Button variant="ghost" size="sm" onClick={() => setHistoryDate(undefined)} className="h-10 sm:h-9">
+              <Button variant="ghost" size="sm" onClick={() => setHistoryDate(undefined)} className="h-9 sm:h-8">
                 Limpar
               </Button>
             )}
@@ -281,18 +281,15 @@ export function TechnicianDashboard() {
   }
 
   return (
-    <div className="space-y-3 animate-fade-in">
-      <div className="flex items-center justify-between gap-3">
+    <div className="space-y-2 animate-fade-in">
+      <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Ordens de Serviço</h1>
-          <p className="hidden sm:block text-sm text-muted-foreground mt-0.5">
-            Gerencie as ordens de manutenção da fábrica
-          </p>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight">Ordens de Serviço</h1>
         </div>
         {isElectron && (
           <Button
             variant="outline"
-            className="shrink-0 h-9"
+            className="shrink-0 h-8 text-xs"
             onClick={() => window.open(window.location.href, "_blank")}
           >
             <MonitorUp className="w-4 h-4 mr-2" />
@@ -302,17 +299,17 @@ export function TechnicianDashboard() {
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-10">
-          <TabsTrigger value="active" className="h-8">
+        <TabsList className="grid w-full grid-cols-2 h-9">
+          <TabsTrigger value="active" className="h-7 text-sm">
             Ativas ({activeOpenCount + activeInProgressCount})
           </TabsTrigger>
-          <TabsTrigger value="history" className="h-8">
+          <TabsTrigger value="history" className="h-7 text-sm">
             Histórico ({closedOrders.length})
           </TabsTrigger>
         </TabsList>
 
         {/* Active Orders Tab */}
-        <TabsContent value="active" className="mt-3 space-y-5">
+        <TabsContent value="active" className="mt-2 space-y-4">
           {filterCard(false)}
 
           {activeOrders.length > 0 ? (
@@ -326,7 +323,7 @@ export function TechnicianDashboard() {
         </TabsContent>
 
         {/* History Tab */}
-        <TabsContent value="history" className="mt-3 space-y-5">
+        <TabsContent value="history" className="mt-2 space-y-4">
           {filterCard(true)}
 
           {closedOrders.length > 0 ? (
