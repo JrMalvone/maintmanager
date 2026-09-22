@@ -32,7 +32,7 @@ export function SectorMultiSelect({ sectors, selected, onChange }: SectorMultiSe
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-[240px] h-10 justify-between">
+        <Button variant="outline" className="w-full sm:w-[220px] h-10 sm:h-9 justify-between">
           <span className="flex items-center gap-2 truncate">
             <Factory className="w-4 h-4 text-muted-foreground shrink-0" />
             <span className="truncate">{label}</span>
