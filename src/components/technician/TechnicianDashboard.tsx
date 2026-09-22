@@ -230,7 +230,7 @@ export function TechnicianDashboard() {
             placeholder="Buscar por descrição..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9"
+            className="pl-9 h-10 sm:h-9"
           />
         </div>
         <SectorMultiSelect sectors={sectors} selected={sectorIds} onChange={setSectorIds} />
@@ -241,7 +241,7 @@ export function TechnicianDashboard() {
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full sm:w-[180px] justify-start text-left font-normal h-9",
+                    "w-full sm:w-[180px] justify-start text-left font-normal h-10 sm:h-9",
                     !historyDate && "text-muted-foreground"
                   )}
                 >
@@ -262,7 +262,7 @@ export function TechnicianDashboard() {
               </PopoverContent>
             </Popover>
             {historyDate && (
-              <Button variant="ghost" size="sm" onClick={() => setHistoryDate(undefined)} className="h-9">
+              <Button variant="ghost" size="sm" onClick={() => setHistoryDate(undefined)} className="h-10 sm:h-9">
                 Limpar
               </Button>
             )}
