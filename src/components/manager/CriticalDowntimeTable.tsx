@@ -1,6 +1,7 @@
 import type { ServiceOrder, Machine } from "@/hooks/useData";
+import { machineLabel } from "@/lib/machineLabel";
 import { formatDateTime } from "@/lib/dateUtils";
-import { AlertTriangle, Clock, CalendarIcon, X } from "lucide-react";
+import { AlertTriangle, Clock, CalendarIcon, X, ArrowUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -12,16 +13,16 @@ import { cn } from "@/lib/utils";
 interface CriticalDowntimeTableProps {
   orders: ServiceOrder[];
   machines: Machine[];
+  onOrderClick: (order: ServiceOrder) => void;
 }
 
 interface CriticalEvent {
   order: ServiceOrder;
-  machineCode: string;
-  sectorName: string;
+  machineName: string;
   downtimeMinutes: number;
 }
 
-export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTableProps) {
+export function CriticalDowntimeTable({ orders, machines, onOrderClick }: CriticalDowntimeTableProps) {
   const [day, setDay] = useState<Date | undefined>(undefined);
 
   const machineMap = useMemo(() => {
@@ -31,23 +32,22 @@ export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTabl
   }, [machines]);
 
   const criticalEvents = useMemo(() => {
-    const now = new Date();
     const events: CriticalEvent[] = [];
 
     for (const order of orders) {
+      if (order.status !== "closed" || !order.is_machine_stopped || !order.finished_at) continue;
       if (day && !isSameDay(new Date(order.created_at), day)) continue;
       const start = new Date(order.created_at);
-      const end = order.finished_at ? new Date(order.finished_at) : now;
+      const end = new Date(order.finished_at);
       const downtimeMinutes = (end.getTime() - start.getTime()) / 60000;
 
-      if (downtimeMinutes <= 180) continue;
+      if (!Number.isFinite(downtimeMinutes) || downtimeMinutes <= 180) continue;
 
       const machine = order.machine_id ? machineMap.get(order.machine_id) : null;
 
       events.push({
         order,
-        machineCode: machine?.code ?? "—",
-        sectorName: "—", // sector name resolved via machine
+        machineName: machineLabel(machine),
         downtimeMinutes,
       });
     }
@@ -116,9 +116,13 @@ export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTabl
             </tr>
           </thead>
           <tbody>
-            {criticalEvents.map(({ order, machineCode, downtimeMinutes }) => (
+            {criticalEvents.map(({ order, machineName, downtimeMinutes }) => (
               <tr key={order.id} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
-                <td className="py-3 px-4 text-sm font-medium">{machineCode}</td>
+                <td className="py-3 px-4 text-sm font-medium">
+                  <Button variant="link" className="h-auto p-0 text-left whitespace-normal text-primary" onClick={() => onOrderClick(order)} aria-label={`Ver detalhes da ordem da máquina ${machineName}`}>
+                    {machineName} <ArrowUpRight className="h-4 w-4 shrink-0" />
+                  </Button>
+                </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" />
@@ -126,15 +130,7 @@ export function CriticalDowntimeTable({ orders, machines }: CriticalDowntimeTabl
                   </div>
                 </td>
                 <td className="py-3 px-4 text-sm">
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                    order.status === "closed"
-                      ? "bg-emerald-500/10 text-emerald-500"
-                      : order.status === "in_progress"
-                      ? "bg-amber-500/10 text-amber-500"
-                      : "bg-red-500/10 text-red-500"
-                  }`}>
-                    {order.status === "closed" ? "Fechada" : order.status === "in_progress" ? "Em Progresso" : "Aberta"}
-                  </span>
+                  <span className="status-badge-closed">Fechada</span>
                 </td>
                 <td className="py-3 px-4 text-sm text-muted-foreground max-w-[200px] truncate">
                   {order.problem_description.length > 50

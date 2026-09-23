@@ -1,5 +1,6 @@
 import type { ServiceOrder } from "@/hooks/useData";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { chartTooltipStyles } from "./chartTooltipStyles";
 
 interface DefectDonutChartProps {
   orders: ServiceOrder[];
@@ -44,9 +45,7 @@ export function DefectDonutChart({ orders }: DefectDonutChartProps) {
                   <Cell key={i} fill={colors[i % colors.length]} />
                 ))}
               </Pie>
-              <Tooltip
-                contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }}
-              />
+              <Tooltip {...chartTooltipStyles} />
               <Legend
                 formatter={(value) => <span style={{ color: "hsl(var(--foreground))" }}>{value}</span>}
               />

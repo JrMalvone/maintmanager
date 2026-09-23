@@ -1,5 +1,6 @@
 import type { ServiceOrder } from "@/hooks/useData";
 import type { DateFilter } from "./DashboardFilters";
+import { chartTooltipStyles } from "./chartTooltipStyles";
 import {
   BarChart,
   Bar,
@@ -79,13 +80,7 @@ export function BacklogChart({ orders, dateFilter }: BacklogChartProps) {
               tickLine={{ stroke: "hsl(var(--border))" }}
               allowDecimals={false}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "8px",
-              }}
-            />
+            <Tooltip {...chartTooltipStyles} />
             <Legend />
             <Bar dataKey="abertas" name="Abertas" fill="hsl(var(--status-open))" radius={[4, 4, 0, 0]} />
             <Bar dataKey="fechadas" name="Fechadas" fill="hsl(var(--status-closed))" radius={[4, 4, 0, 0]} />
