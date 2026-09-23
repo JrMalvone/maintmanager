@@ -11,6 +11,7 @@ import { CriticalDowntimeTable } from "./CriticalDowntimeTable";
 import { DowntimeChart } from "./DowntimeChart";
 import { DefectDonutChart } from "./DefectDonutChart";
 import { OpenClosedTrendChart } from "./OpenClosedTrendChart";
+import { OrderDetailSheet } from "@/components/technician/OrderDetailSheet";
 import { DashboardFilters, getDefaultFilter, type DateFilter } from "./DashboardFilters";
 import { Loader2 } from "lucide-react";
 import { isWithinInterval, differenceInHours } from "date-fns";
@@ -22,6 +23,8 @@ export function ManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<DateFilter>(getDefaultFilter);
   const [sectorId, setSectorId] = useState("all");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -99,7 +102,17 @@ export function ManagerDashboard() {
       </div>
 
       <TechnicianPerformance workLogs={workLogs} />
-      <CriticalDowntimeTable orders={orders} machines={machines} />
+      <CriticalDowntimeTable
+        orders={orders}
+        machines={machines}
+        onOrderClick={(order) => { setSelectedOrderId(order.id); setSheetOpen(true); }}
+      />
+      <OrderDetailSheet
+        order={allOrders.find((order) => order.id === selectedOrderId) ?? null}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onUpdate={fetchData}
+      />
     </div>
   );
 }

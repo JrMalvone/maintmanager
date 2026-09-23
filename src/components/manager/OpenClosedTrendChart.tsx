@@ -1,5 +1,6 @@
 import type { ServiceOrder } from "@/hooks/useData";
 import type { DateFilter } from "./DashboardFilters";
+import { chartTooltipStyles } from "./chartTooltipStyles";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -62,7 +63,7 @@ export function OpenClosedTrendChart({ orders, dateFilter }: OpenClosedTrendChar
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
             <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} allowDecimals={false} />
-            <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
+            <Tooltip {...chartTooltipStyles} />
             <Legend />
             <Line type="monotone" dataKey="abertas" name="Abertas" stroke="hsl(var(--status-open))" strokeWidth={2} dot={{ r: 3 }} />
             <Line type="monotone" dataKey="fechadas" name="Fechadas" stroke="hsl(var(--status-closed))" strokeWidth={2} dot={{ r: 3 }} />

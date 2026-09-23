@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder, Machine } from "@/hooks/useData";
+import { machineLabel } from "@/lib/machineLabel";
+import { chartTooltipStyles } from "./chartTooltipStyles";
 import {
   BarChart,
   Bar,
@@ -37,7 +39,7 @@ export function ParetoChart({ orders }: ParetoChartProps) {
   // Count orders per machine
   const machineCounts: MachineCount[] = machines
     .map((machine) => ({
-      code: machine.code,
+      code: machineLabel(machine),
       count: orders.filter((o) => o.machine_id === machine.id).length,
     }))
     .filter((m) => m.count > 0)
@@ -60,12 +62,13 @@ export function ParetoChart({ orders }: ParetoChartProps) {
           Nenhum dado disponível
         </div>
       ) : (
-        <div className="h-[300px]">
+        <div className="overflow-x-auto">
+        <div className="h-[300px] min-w-[460px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={machineCounts}
               layout="vertical"
-              margin={{ top: 20, right: 20, left: 60, bottom: 5 }}
+              margin={{ top: 20, right: 20, left: 10, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
@@ -79,14 +82,10 @@ export function ParetoChart({ orders }: ParetoChartProps) {
                 dataKey="code"
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                 tickLine={{ stroke: "hsl(var(--border))" }}
-                width={50}
+                width={180}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
+                {...chartTooltipStyles}
                 formatter={(value) => [`${value} ordens`, "Total"]}
               />
               <Bar dataKey="count" radius={[0, 4, 4, 0]}>
@@ -96,6 +95,7 @@ export function ParetoChart({ orders }: ParetoChartProps) {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
         </div>
       )}
     </div>

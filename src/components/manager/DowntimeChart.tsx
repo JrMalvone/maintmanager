@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder, Machine } from "@/hooks/useData";
+import { machineLabel } from "@/lib/machineLabel";
+import { chartTooltipStyles } from "./chartTooltipStyles";
 import { differenceInMinutes } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -32,7 +34,7 @@ export function DowntimeChart({ orders }: DowntimeChartProps) {
 
   const chartData = Array.from(downtimeMap.entries())
     .map(([machineId, mins]) => ({
-      code: machines.find((m) => m.id === machineId)?.code || machineId.slice(0, 8),
+      code: machineLabel(machines.find((m) => m.id === machineId), machineId.slice(0, 8)),
       hours: Math.round(mins / 60 * 10) / 10,
     }))
     .sort((a, b) => b.hours - a.hours)
@@ -54,14 +56,15 @@ export function DowntimeChart({ orders }: DowntimeChartProps) {
           Nenhum dado disponível
         </div>
       ) : (
-        <div className="h-[300px]">
+        <div className="overflow-x-auto">
+        <div className="h-[300px] min-w-[460px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} layout="vertical" margin={{ top: 20, right: 20, left: 60, bottom: 5 }}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} allowDecimals={false} />
-              <YAxis type="category" dataKey="code" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} width={50} />
+              <YAxis type="category" dataKey="code" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} width={180} />
               <Tooltip
-                contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }}
+                {...chartTooltipStyles}
                 formatter={(value) => [`${value}h`, "Downtime"]}
               />
               <Bar dataKey="hours" radius={[0, 4, 4, 0]}>
@@ -71,6 +74,7 @@ export function DowntimeChart({ orders }: DowntimeChartProps) {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
         </div>
       )}
     </div>
