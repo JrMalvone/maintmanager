@@ -8,5 +8,5 @@
 - [x] Exibir número e modelo da máquina em todo o dashboard
 - [x] Tornar legíveis os textos ao passar sobre todos os gráficos
 - [x] Restringir a lista de paradas >3h a ordens encerradas com máquina parada e abrir seus detalhes
-- [ ] Fazer app Windows carregar versão publicada automaticamente, preservando segunda janela e entregar pacote atualizado
+- [x] Fazer app Windows carregar versão publicada automaticamente, preservando segunda janela e entregar pacote atualizado
 - [ ] Configurar alerta por e-mail para parada acima de 3 horas — bloqueado: domínio de envio não configurado
