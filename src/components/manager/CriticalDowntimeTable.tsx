@@ -117,9 +117,9 @@ export function CriticalDowntimeTable({ orders, machines, onOrderClick }: Critic
           </thead>
           <tbody>
             {criticalEvents.map(({ order, machineName, downtimeMinutes }) => (
-              <tr key={order.id} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
+              <tr key={order.id} className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => onOrderClick(order)}>
                 <td className="py-3 px-4 text-sm font-medium">
-                  <Button variant="link" className="h-auto p-0 text-left whitespace-normal text-primary" onClick={() => onOrderClick(order)} aria-label={`Ver detalhes da ordem da máquina ${machineName}`}>
+                  <Button variant="link" className="h-auto p-0 text-left whitespace-normal text-primary" onClick={(event) => { event.stopPropagation(); onOrderClick(order); }} aria-label={`Ver detalhes da ordem da máquina ${machineName}`}>
                     {machineName} <ArrowUpRight className="h-4 w-4 shrink-0" />
                   </Button>
                 </td>

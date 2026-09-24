@@ -63,7 +63,7 @@ export function ParetoChart({ orders }: ParetoChartProps) {
         </div>
       ) : (
         <div className="overflow-x-auto">
-        <div className="h-[300px] min-w-[460px]">
+        <div className="h-[300px] min-w-[540px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={machineCounts}
@@ -82,7 +82,7 @@ export function ParetoChart({ orders }: ParetoChartProps) {
                 dataKey="code"
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                 tickLine={{ stroke: "hsl(var(--border))" }}
-                width={180}
+                width={210}
               />
               <Tooltip
                 {...chartTooltipStyles}
