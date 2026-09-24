@@ -57,12 +57,12 @@ export function DowntimeChart({ orders }: DowntimeChartProps) {
         </div>
       ) : (
         <div className="overflow-x-auto">
-        <div className="h-[300px] min-w-[460px]">
+        <div className="h-[300px] min-w-[540px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} layout="vertical" margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} allowDecimals={false} />
-              <YAxis type="category" dataKey="code" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} width={180} />
+              <YAxis type="category" dataKey="code" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} width={210} />
               <Tooltip
                 {...chartTooltipStyles}
                 formatter={(value) => [`${value}h`, "Downtime"]}

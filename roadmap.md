@@ -5,7 +5,7 @@
 - [x] Incluir o centro nos apontamentos SAP e na conferência visual
 - [x] Validar banco, tipos e fluxo de fechamento
 - [x] Preparar app Android nativo para instalação direta fora da Play Store
-- [ ] Exibir número e modelo da máquina em todo o dashboard
-- [ ] Tornar legíveis os textos ao passar sobre todos os gráficos
-- [ ] Restringir a lista de paradas >3h a ordens encerradas com máquina parada e abrir seus detalhes
+- [x] Exibir número e modelo da máquina em todo o dashboard
+- [x] Tornar legíveis os textos ao passar sobre todos os gráficos
+- [x] Restringir a lista de paradas >3h a ordens encerradas com máquina parada e abrir seus detalhes
 - [ ] Configurar alerta por e-mail para parada acima de 3 horas — bloqueado: domínio de envio não configurado
