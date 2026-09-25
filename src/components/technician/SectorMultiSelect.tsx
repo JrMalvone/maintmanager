@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Factory, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Sector {
   id: string;
@@ -12,9 +13,17 @@ interface SectorMultiSelectProps {
   sectors: Sector[];
   selected: string[];
   onChange: (ids: string[]) => void;
+  className?: string;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function SectorMultiSelect({ sectors, selected, onChange }: SectorMultiSelectProps) {
+export function SectorMultiSelect({
+  sectors,
+  selected,
+  onChange,
+  className,
+  onOpenChange,
+}: SectorMultiSelectProps) {
   const allSelected = selected.length === 0;
 
   function toggle(id: string) {
@@ -30,9 +39,12 @@ export function SectorMultiSelect({ sectors, selected, onChange }: SectorMultiSe
       : `${selected.length} setores`;
 
   return (
-    <Popover>
+    <Popover onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-[200px] h-9 sm:h-8 justify-between text-sm">
+        <Button
+          variant="outline"
+          className={cn("w-full sm:w-[200px] h-9 sm:h-8 justify-between text-sm", className)}
+        >
           <span className="flex items-center gap-2 truncate">
             <Factory className="w-4 h-4 text-muted-foreground shrink-0" />
             <span className="truncate">{label}</span>

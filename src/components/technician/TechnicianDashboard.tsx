@@ -79,7 +79,10 @@ export function TechnicianDashboard() {
 
   const matchesSector = (o: ServiceOrder) =>
     sectorIds.length === 0 ||
-    (orderSectorId(o) !== null && sectorIds.includes(orderSectorId(o)!));
+    (() => {
+      const id = orderSectorId(o);
+      return id !== null && sectorIds.includes(id);
+    })();
 
   const matchesSearch = (o: ServiceOrder) =>
     searchQuery
@@ -140,8 +143,9 @@ export function TechnicianDashboard() {
         noSector.push(order);
         continue;
       }
-      if (!byId.has(sid)) byId.set(sid, []);
-      byId.get(sid)!.push(order);
+      const sectorOrders = byId.get(sid) ?? [];
+      sectorOrders.push(order);
+      byId.set(sid, sectorOrders);
     }
 
     // Keep sectors in alphabetical order (sectors already sorted by name)
@@ -290,7 +294,7 @@ export function TechnicianDashboard() {
           <Button
             variant="outline"
             className="shrink-0 h-8 text-xs"
-            onClick={() => window.open(window.location.href, "_blank")}
+            onClick={() => window.open(`${window.location.origin}/dashboard/tv`, "_blank")}
           >
             <MonitorUp className="w-4 h-4 mr-2" />
             Abrir em novo monitor
