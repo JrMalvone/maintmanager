@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, LogIn, Wrench } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export function SimpleLoginForm() {
   const [user, setUser] = useState("");
@@ -12,12 +13,19 @@ export function SimpleLoginForm() {
   const [loading, setLoading] = useState(false);
   const { login } = useAppAuth();
   const { toast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     const result = await login(user, password);
+
+    const returnTo = (location.state as { returnTo?: unknown } | null)?.returnTo;
+    if (result.success && returnTo === "/dashboard/tv") {
+      navigate(returnTo, { replace: true });
+    }
 
     if (!result.success) {
       toast({

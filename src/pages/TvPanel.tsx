@@ -14,7 +14,9 @@ export default function TvPanelPage() {
     );
   }
 
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ returnTo: "/dashboard/tv" }} />;
+  }
   if (role !== "manutencao" && role !== "gestor") {
     return <Navigate to="/dashboard" replace />;
   }
