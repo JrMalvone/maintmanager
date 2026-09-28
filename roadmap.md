@@ -10,4 +10,5 @@
 - [x] Restringir a lista de paradas >3h a ordens encerradas com máquina parada e abrir seus detalhes
 - [x] Fazer app Windows carregar versão publicada automaticamente, preservando segunda janela e entregar pacote atualizado
 - [x] Criar painel TV somente leitura com filtro persistente e rolagem automática
+- [ ] Corrigir a abertura direta do Painel TV, validar e publicar
 - [ ] Configurar alerta por e-mail para parada acima de 3 horas — bloqueado: domínio de envio não configurado
