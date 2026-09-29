@@ -176,7 +176,7 @@ export function TvOrdersPanel() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1800px] space-y-9 px-5 py-6">
+      <main className="mx-auto max-w-[1920px] space-y-6 px-4 py-4">
         {filteredOrders.length === 0 ? (
           <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
             <ClipboardList className="mb-5 h-20 w-20 text-muted-foreground/40" />
@@ -185,13 +185,13 @@ export function TvOrdersPanel() {
         ) : (
           <>
             {groups.map((group) => (
-              <section key={group.id} className="space-y-4">
-                <div className="flex items-center gap-3 border-b border-border pb-3">
-                  <Factory className="h-6 w-6 text-primary" />
-                  <h2 className="text-2xl font-bold uppercase">{group.name}</h2>
-                  <span className="text-lg text-muted-foreground">({group.orders.length})</span>
+              <section key={group.id} className="space-y-3">
+                <div className="flex items-center gap-2 border-b border-border pb-2">
+                  <Factory className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-bold uppercase">{group.name}</h2>
+                  <span className="text-base text-muted-foreground">({group.orders.length})</span>
                 </div>
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {group.orders.map((order) => (
                     <TvOrderCard
                       key={order.id}
@@ -205,11 +205,11 @@ export function TvOrdersPanel() {
               </section>
             ))}
             {ungrouped.length > 0 && (
-              <section className="space-y-4">
-                <div className="border-b border-border pb-3">
-                  <h2 className="text-2xl font-bold uppercase">Sem setor</h2>
+              <section className="space-y-3">
+                <div className="border-b border-border pb-2">
+                  <h2 className="text-xl font-bold uppercase">Sem setor</h2>
                 </div>
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {ungrouped.map((order) => (
                     <TvOrderCard
                       key={order.id}

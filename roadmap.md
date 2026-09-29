@@ -12,3 +12,4 @@
 - [x] Criar painel TV somente leitura com filtro persistente e rolagem automática
 - [ ] Publicar a correção da abertura direta do Painel TV — bloqueado: publicação não autorizada no diálogo
 - [ ] Configurar alerta por e-mail para parada acima de 3 horas — bloqueado: domínio de envio não configurado
+- [x] Compactar cartões do Painel TV, destacar técnico e abertura e liberar acesso direto sem login
