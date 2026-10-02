@@ -130,12 +130,16 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
           <p className="kpi-label">Em Andamento</p>
         </div>
 
-        {/* Critical */}
+        {/* MTTA */}
         <div className="kpi-card">
           <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="w-5 h-5 text-priority-critical" />
-            <span className="text-xs text-muted-foreground">Urgente</span>
+            <TrendingUp className="w-5 h-5 text-status-progress" />
+            <span className="text-xs text-muted-foreground">Média</span>
           </div>
+          <p className="kpi-value text-status-progress">{mttaFormatted}</p>
+          <p className="kpi-label">MTTA</p>
+        </div>
+      </div>
           <p className="kpi-value text-priority-critical">{criticalCount}</p>
           <p className="kpi-label">Críticas</p>
         </div>
