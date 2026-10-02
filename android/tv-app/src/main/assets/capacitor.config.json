@@ -1,0 +1,11 @@
+{
+  "appId": "app.lovable.aee8513a20b74d2fbcfc37771c3f9639.tv",
+  "appName": "CMMS Painel TV",
+  "webDir": "public",
+  "server": {
+    "url": "https://maintmanager.lovable.app/dashboard/tv"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
