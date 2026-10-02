@@ -140,10 +140,6 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
           <p className="kpi-label">MTTA</p>
         </div>
       </div>
-          <p className="kpi-value text-priority-critical">{criticalCount}</p>
-          <p className="kpi-label">Críticas</p>
-        </div>
-      </div>
 
       {/* Row 2: Advanced KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
