@@ -71,7 +71,7 @@ export function ManagerDashboard() {
   const periodDays = Math.max(differenceInHours(filter.end, filter.start), 0) / 24;
   const shiftsBySector = new Map(sectors.map((s) => [s.id, s.shifts_count ?? 3]));
   const totalPeriodHours = machines
-    .filter((m) => m.status === "active" && (!sectorMachineIds || sectorMachineIds.has(m.id)))
+    .filter((m) => (m as { status?: string }).status !== "inactive" && (!sectorMachineIds || sectorMachineIds.has(m.id)))
     .reduce((acc, m) => acc + periodDays * (shiftsBySector.get(m.sector_id ?? "") ?? 3) * 8, 0);
 
   if (loading) {
