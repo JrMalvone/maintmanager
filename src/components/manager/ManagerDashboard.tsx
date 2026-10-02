@@ -20,6 +20,7 @@ export function ManagerDashboard() {
   const [allOrders, setAllOrders] = useState<ServiceOrder[]>([]);
   const [allWorkLogs, setAllWorkLogs] = useState<WorkLog[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
+  const [sectors, setSectors] = useState<{ id: string; shifts_count: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<DateFilter>(getDefaultFilter);
   const [sectorId, setSectorId] = useState("all");
@@ -31,15 +32,17 @@ export function ManagerDashboard() {
   }, []);
 
   async function fetchData() {
-    const [ordersRes, workLogsRes, machinesRes] = await Promise.all([
+    const [ordersRes, workLogsRes, machinesRes, sectorsRes] = await Promise.all([
       supabase.from("service_orders").select("*").order("created_at", { ascending: false }),
       supabase.from("work_logs").select("*").order("started_at", { ascending: false }),
       supabase.from("machines").select("*"),
+      supabase.from("sectors").select("id, shifts_count"),
     ]);
 
     if (ordersRes.data) setAllOrders(ordersRes.data as ServiceOrder[]);
     if (workLogsRes.data) setAllWorkLogs(workLogsRes.data as WorkLog[]);
     if (machinesRes.data) setMachines(machinesRes.data);
+    if (sectorsRes.data) setSectors(sectorsRes.data);
     setLoading(false);
   }
 
@@ -64,8 +67,12 @@ export function ManagerDashboard() {
     return isWithinInterval(date, { start: filter.start, end: filter.end });
   });
 
-  // Total period hours (for MTBF / Availability)
-  const totalPeriodHours = differenceInHours(filter.end, filter.start);
+  // Planned operating hours = days × (shifts × 8h) × active machines, summed per sector
+  const periodDays = Math.max(differenceInHours(filter.end, filter.start), 0) / 24;
+  const shiftsBySector = new Map(sectors.map((s) => [s.id, s.shifts_count ?? 3]));
+  const totalPeriodHours = machines
+    .filter((m) => m.status === "active" && (!sectorMachineIds || sectorMachineIds.has(m.id)))
+    .reduce((acc, m) => acc + periodDays * (shiftsBySector.get(m.sector_id ?? "") ?? 3) * 8, 0);
 
   if (loading) {
     return (
