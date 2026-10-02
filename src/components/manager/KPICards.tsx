@@ -22,15 +22,24 @@ interface KPICardsProps {
 }
 
 export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) {
-  // MTTR
-  const closedOrders = orders.filter(
-    (o) => o.status === "closed" && o.started_at && o.finished_at
+  // Qualified orders: closed + machine stopped + valid timestamps (used by MTTR, MTBF, MTTA, Availability, Downtime)
+  const qualified = orders.filter(
+    (o) => o.status === "closed" && o.is_machine_stopped && o.started_at && o.finished_at
   );
-  const totalRepairTime = closedOrders.reduce((acc, order) => {
-    return acc + differenceInMinutes(new Date(order.finished_at!), new Date(order.started_at!));
-  }, 0);
-  const mttr = closedOrders.length > 0 ? Math.round(totalRepairTime / closedOrders.length) : 0;
-  const mttrFormatted = mttr < 60 ? `${mttr} min` : `${Math.floor(mttr / 60)}h ${mttr % 60}m`;
+  const closedOrders = orders.filter((o) => o.status === "closed");
+  const fmtMin = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`);
+
+  // MTTR = finished_at − started_at
+  const totalRepairTime = qualified.reduce(
+    (acc, o) => acc + Math.max(differenceInMinutes(new Date(o.finished_at!), new Date(o.started_at!)), 0), 0);
+  const mttr = qualified.length > 0 ? Math.round(totalRepairTime / qualified.length) : 0;
+  const mttrFormatted = fmtMin(mttr);
+
+  // MTTA = started_at − created_at
+  const totalResponse = qualified.reduce(
+    (acc, o) => acc + Math.max(differenceInMinutes(new Date(o.started_at!), new Date(o.created_at)), 0), 0);
+  const mtta = qualified.length > 0 ? Math.round(totalResponse / qualified.length) : 0;
+  const mttaFormatted = fmtMin(mtta);
 
   // Man-Hours
   const totalManMinutes = workLogs
@@ -42,25 +51,20 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
   const openCount = orders.filter((o) => o.status === "open").length;
   const inProgressCount = orders.filter((o) => o.status === "in_progress").length;
   const closedCount = closedOrders.length;
-  const criticalCount = orders.filter(
-    (o) => o.priority === "critical" && o.status !== "closed"
-  ).length;
 
-  // Total Downtime (hours) - all stopped machines not closed
-  const totalDowntimeMinutes = orders
-    .filter((o) => o.is_machine_stopped && o.status === "closed" && o.started_at && o.finished_at)
-    .reduce((acc, o) => acc + differenceInMinutes(new Date(o.finished_at!), new Date(o.created_at)), 0);
+  // Downtime = finished_at − created_at
+  const totalDowntimeMinutes = qualified.reduce(
+    (acc, o) => acc + Math.max(differenceInMinutes(new Date(o.finished_at!), new Date(o.created_at)), 0), 0);
   const totalDowntimeHours = Math.round(totalDowntimeMinutes / 60 * 10) / 10;
 
-  // MTBF = (Total Expected Uptime - Total Downtime) / Number of Orders
-  const orderCount = orders.length || 1;
-  const mtbfHours = totalPeriodHours > 0
-    ? Math.round(((totalPeriodHours - totalDowntimeHours) / orderCount) * 10) / 10
+  // MTBF = (Planned − Downtime) / qualified stops
+  const mtbfHours = totalPeriodHours > 0 && qualified.length > 0
+    ? Math.round((Math.max(totalPeriodHours - totalDowntimeMinutes / 60, 0) / qualified.length) * 10) / 10
     : 0;
 
   // Availability %
   const availability = totalPeriodHours > 0
-    ? Math.round(((totalPeriodHours - totalDowntimeHours) / totalPeriodHours) * 100)
+    ? Math.max(Math.round(((totalPeriodHours - totalDowntimeMinutes / 60) / totalPeriodHours) * 100), 0)
     : 100;
 
   // Maintenance type split
@@ -126,14 +130,14 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
           <p className="kpi-label">Em Andamento</p>
         </div>
 
-        {/* Critical */}
+        {/* MTTA */}
         <div className="kpi-card">
           <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="w-5 h-5 text-priority-critical" />
-            <span className="text-xs text-muted-foreground">Urgente</span>
+            <TrendingUp className="w-5 h-5 text-status-progress" />
+            <span className="text-xs text-muted-foreground">Média</span>
           </div>
-          <p className="kpi-value text-priority-critical">{criticalCount}</p>
-          <p className="kpi-label">Críticas</p>
+          <p className="kpi-value text-status-progress">{mttaFormatted}</p>
+          <p className="kpi-label">MTTA</p>
         </div>
       </div>
 
