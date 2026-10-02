@@ -67,12 +67,17 @@ export function ManagerDashboard() {
     return isWithinInterval(date, { start: filter.start, end: filter.end });
   });
 
-  // Planned operating hours = days × (shifts × 8h) × active machines, summed per sector
-  const periodDays = Math.max(differenceInHours(filter.end, filter.start), 0) / 24;
-  const shiftsBySector = new Map(sectors.map((s) => [s.id, s.shifts_count ?? 3]));
-  const totalPeriodHours = machines
-    .filter((m) => (m as { status?: string }).status !== "inactive" && (!sectorMachineIds || sectorMachineIds.has(m.id)))
-    .reduce((acc, m) => acc + periodDays * (shiftsBySector.get(m.sector_id ?? "") ?? 3) * 8, 0);
+  // Planned operating hours = days elapsed in filter × (shifts × 8h), summed per sector with active machines
+  const effectiveEnd = filter.end > new Date() ? new Date() : filter.end;
+  const periodDays = Math.max(differenceInHours(effectiveEnd, filter.start), 0) / 24;
+  const activeSectorIds = new Set(
+    machines
+      .filter((m) => (m as { status?: string }).status !== "inactive" && m.sector_id)
+      .map((m) => m.sector_id as string)
+  );
+  const totalPeriodHours = sectors
+    .filter((s) => activeSectorIds.has(s.id) && (sectorId === "all" || s.id === sectorId))
+    .reduce((acc, s) => acc + periodDays * (s.shifts_count ?? 3) * 8, 0);
 
   if (loading) {
     return (
