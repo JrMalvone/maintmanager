@@ -123,6 +123,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          shifts_count: number
           work_center_electronic: string | null
           work_center_mechanical: string | null
         }
@@ -131,6 +132,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          shifts_count?: number
           work_center_electronic?: string | null
           work_center_mechanical?: string | null
         }
@@ -139,6 +141,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          shifts_count?: number
           work_center_electronic?: string | null
           work_center_mechanical?: string | null
         }
