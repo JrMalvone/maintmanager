@@ -37,6 +37,7 @@ interface Sector {
   description: string | null;
   work_center_electronic: string | null;
   work_center_mechanical: string | null;
+  shifts_count: number;
 }
 
 export function SectorsTab() {
@@ -50,6 +51,7 @@ export function SectorsTab() {
   const [description, setDescription] = useState("");
   const [wcElectronic, setWcElectronic] = useState("");
   const [wcMechanical, setWcMechanical] = useState("");
+  const [shifts, setShifts] = useState(3);
   const [saving, setSaving] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
@@ -69,6 +71,7 @@ export function SectorsTab() {
     setDescription("");
     setWcElectronic("");
     setWcMechanical("");
+    setShifts(3);
     setDialogOpen(true);
   }
 
@@ -78,6 +81,7 @@ export function SectorsTab() {
     setDescription(sector.description || "");
     setWcElectronic(sector.work_center_electronic || "");
     setWcMechanical(sector.work_center_mechanical || "");
+    setShifts(sector.shifts_count ?? 3);
     setDialogOpen(true);
   }
 
@@ -90,6 +94,7 @@ export function SectorsTab() {
       description: description.trim() || null,
       work_center_electronic: wcElectronic.trim().toUpperCase() || null,
       work_center_mechanical: wcMechanical.trim().toUpperCase() || null,
+      shifts_count: shifts,
     };
 
     try {
@@ -165,13 +170,14 @@ export function SectorsTab() {
               <TableHead>Descrição</TableHead>
               <TableHead>Centro Elétrica</TableHead>
               <TableHead>Centro Mecânica</TableHead>
+              <TableHead>Turnos</TableHead>
               <TableHead className="w-[120px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sectors.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   Nenhum setor cadastrado
                 </TableCell>
               </TableRow>
@@ -182,6 +188,7 @@ export function SectorsTab() {
                   <TableCell className="text-muted-foreground">{sector.description || "—"}</TableCell>
                   <TableCell className="font-mono">{sector.work_center_electronic || "—"}</TableCell>
                   <TableCell className="font-mono">{sector.work_center_mechanical || "—"}</TableCell>
+                  <TableCell>{sector.shifts_count ?? 3}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(sector)}>
@@ -233,6 +240,18 @@ export function SectorsTab() {
                   className="font-mono"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Turnos em operação</Label>
+              <select
+                value={shifts}
+                onChange={(e) => setShifts(Number(e.target.value))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value={1}>1 Turno (8h/dia)</option>
+                <option value={2}>2 Turnos (16h/dia)</option>
+                <option value={3}>3 Turnos (24h/dia)</option>
+              </select>
             </div>
             <p className="text-xs text-muted-foreground">
               Estes códigos são enviados no campo <span className="font-mono">work_center</span> das ordens deste setor,
