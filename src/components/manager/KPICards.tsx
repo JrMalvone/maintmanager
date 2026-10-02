@@ -55,7 +55,7 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
   // Downtime = finished_at − created_at
   const totalDowntimeMinutes = qualified.reduce(
     (acc, o) => acc + Math.max(differenceInMinutes(new Date(o.finished_at!), new Date(o.created_at)), 0), 0);
-  const totalDowntimeHours = Math.round(totalDowntimeMinutes / 60 * 10) / 10;
+  const totalDowntimeHours = Math.round(totalDowntimeMinutes / 60 * 10) / 10; void totalDowntimeHours;
   const downtimeFormatted = fmtMin(totalDowntimeMinutes);
 
   // MTBF = average interval between end of a stop (finished_at) and creation of the next stop (created_at)
