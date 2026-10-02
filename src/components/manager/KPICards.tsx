@@ -55,16 +55,22 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
   // Downtime = finished_at − created_at
   const totalDowntimeMinutes = qualified.reduce(
     (acc, o) => acc + Math.max(differenceInMinutes(new Date(o.finished_at!), new Date(o.created_at)), 0), 0);
-  const totalDowntimeHours = Math.round(totalDowntimeMinutes / 60 * 10) / 10;
+  const totalDowntimeHours = Math.round(totalDowntimeMinutes / 60 * 10) / 10; void totalDowntimeHours;
+  const downtimeFormatted = fmtMin(totalDowntimeMinutes);
 
-  // MTBF = (Planned − Downtime) / qualified stops
-  const mtbfHours = totalPeriodHours > 0 && qualified.length > 0
-    ? Math.round((Math.max(totalPeriodHours - totalDowntimeMinutes / 60, 0) / qualified.length) * 10) / 10
-    : 0;
+  // MTBF = average interval between end of a stop (finished_at) and creation of the next stop (created_at)
+  const sortedStops = [...qualified].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  let intervalSum = 0;
+  for (let i = 1; i < sortedStops.length; i++) {
+    intervalSum += Math.max(differenceInMinutes(new Date(sortedStops[i].created_at), new Date(sortedStops[i - 1].finished_at!)), 0);
+  }
+  const mtbfMinutes = sortedStops.length > 1 ? Math.round(intervalSum / (sortedStops.length - 1)) : 0;
+  const mtbfFormatted = sortedStops.length > 1 ? fmtMin(mtbfMinutes) : "—";
 
-  // Availability %
+  // Availability % over sector shift time
   const availability = totalPeriodHours > 0
-    ? Math.max(Math.round(((totalPeriodHours - totalDowntimeMinutes / 60) / totalPeriodHours) * 100), 0)
+    ? Math.min(Math.max(Math.round(((totalPeriodHours - totalDowntimeMinutes / 60) / totalPeriodHours) * 1000) / 10, 0), 100)
     : 100;
 
   // Maintenance type split
@@ -96,8 +102,28 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
             <Activity className="w-5 h-5 text-status-closed" />
             <span className="text-xs text-muted-foreground">Média</span>
           </div>
-          <p className="kpi-value text-status-closed">{mtbfHours}h</p>
+          <p className="kpi-value text-status-closed">{mtbfFormatted}</p>
           <p className="kpi-label">MTBF</p>
+        </div>
+
+        {/* MTTA */}
+        <div className="kpi-card">
+          <div className="flex items-center justify-between mb-2">
+            <TrendingUp className="w-5 h-5 text-status-progress" />
+            <span className="text-xs text-muted-foreground">Média</span>
+          </div>
+          <p className="kpi-value text-status-progress">{mttaFormatted}</p>
+          <p className="kpi-label">MTTA</p>
+        </div>
+
+        {/* Downtime */}
+        <div className="kpi-card">
+          <div className="flex items-center justify-between mb-2">
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+            <span className="text-xs text-muted-foreground">Total</span>
+          </div>
+          <p className="kpi-value text-destructive">{downtimeFormatted}</p>
+          <p className="kpi-label">Downtime</p>
         </div>
 
         {/* Man-Hours */}
@@ -110,34 +136,14 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
           <p className="kpi-label">Homem-Hora</p>
         </div>
 
-        {/* Open Orders */}
-        <div className="kpi-card">
-          <div className="flex items-center justify-between mb-2">
-            <AlertTriangle className="w-5 h-5 text-status-open" />
-            <span className="text-xs text-muted-foreground">Pendentes</span>
-          </div>
-          <p className="kpi-value text-status-open">{openCount}</p>
-          <p className="kpi-label">Abertas</p>
-        </div>
-
-        {/* In Progress */}
+        {/* Open + In Progress */}
         <div className="kpi-card">
           <div className="flex items-center justify-between mb-2">
             <Wrench className="w-5 h-5 text-status-progress" />
             <span className="text-xs text-muted-foreground">Agora</span>
           </div>
-          <p className="kpi-value text-status-progress">{inProgressCount}</p>
-          <p className="kpi-label">Em Andamento</p>
-        </div>
-
-        {/* MTTA */}
-        <div className="kpi-card">
-          <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="w-5 h-5 text-status-progress" />
-            <span className="text-xs text-muted-foreground">Média</span>
-          </div>
-          <p className="kpi-value text-status-progress">{mttaFormatted}</p>
-          <p className="kpi-label">MTTA</p>
+          <p className="kpi-value text-status-open">{openCount} <span className="text-status-progress">/ {inProgressCount}</span></p>
+          <p className="kpi-label">Abertas / Em Andamento</p>
         </div>
       </div>
 
