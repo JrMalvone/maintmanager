@@ -10,9 +10,6 @@ android {
         versionCode 1
         versionName "1.0"
     }
-    sourceSets {
-        main.res.srcDirs += ['../app/src/main/res']
-    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
