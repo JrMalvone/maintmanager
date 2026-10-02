@@ -14,4 +14,4 @@
 - [ ] Configurar alerta por e-mail para parada acima de 3 horas — bloqueado: domínio de envio não configurado
 - [x] Compactar cartões do Painel TV, destacar técnico e abertura e liberar acesso direto sem login
 - [x] Entregar aplicativo dedicado do Painel TV para Raspberry Pi OS 32 bits com tela cheia e início automático
-- [ ] Entregar APK Android exclusivo do Painel TV como opção de aplicativo de Início; validação de boot no Raspberry Pi 4 depende do aparelho físico
+- [x] Entregar APK Android exclusivo do Painel TV como opção de aplicativo de Início; validação de boot no Raspberry Pi 4 depende do aparelho físico
