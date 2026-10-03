@@ -31,7 +31,8 @@ export function DowntimeChart({ orders, shiftsByMachine }: DowntimeChartProps) {
 
   const downtimeMap = new Map<string, number>();
   stoppedOrders.forEach((o) => {
-    const mins = differenceInMinutes(new Date(o.finished_at!), new Date(o.created_at));
+    const shifts = shiftsByMachine?.get(o.machine_id || "") ?? 3;
+    const mins = operatingMinutes(o.created_at, o.finished_at!, shifts);
     downtimeMap.set(o.machine_id || "", (downtimeMap.get(o.machine_id || "") || 0) + mins);
   });
 

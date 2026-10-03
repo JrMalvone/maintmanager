@@ -25,7 +25,7 @@ interface CriticalEvent {
   downtimeMinutes: number;
 }
 
-export function CriticalDowntimeTable({ orders, machines, onOrderClick }: CriticalDowntimeTableProps) {
+export function CriticalDowntimeTable({ orders, machines, onOrderClick, shiftsByMachine }: CriticalDowntimeTableProps) {
   const [day, setDay] = useState<Date | undefined>(undefined);
 
   const machineMap = useMemo(() => {
