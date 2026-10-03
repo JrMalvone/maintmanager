@@ -10,6 +10,7 @@ export interface WorkLog {
   started_at: string;
   ended_at: string | null;
   duration_minutes: number | null;
+  notes?: string | null;
   created_at: string;
 }
 

@@ -138,6 +138,13 @@ export function OrderDetailSheet({
     }
   }, [order?.machine_id, order]);
 
+  // Isolate AI diagnosis per order
+  useEffect(() => {
+    setAiResult(null);
+    setAiError(null);
+    setAiLoading(false);
+  }, [order?.id]);
+
   // Fetch active staff when modal opens
   useEffect(() => {
     if (startModalOpen) {
@@ -332,24 +339,32 @@ export function OrderDetailSheet({
         ...activeTechnicians.map((l) => ({ ...l, ended_at: now.toISOString() })),
       ];
 
+      const finalText = solutionDescription.trim();
       const apontamentos: SapApontamento[] = allLogs.map((log) => {
         const start = new Date(log.started_at);
         const end = new Date(log.ended_at || now.toISOString());
+        const note = (log.notes || "").trim();
         return buildApontamento(
           log.technician_registry || log.technician_name,
           log.work_center,
           start,
           end,
-          solutionDescription.trim()
+          note || finalText
         );
       });
 
-      // Fetch existing apontamentos to avoid overwriting (unlikely but safe)
+      const stepNotes = allLogs
+        .filter((l) => (l.notes || "").trim())
+        .map((l) => `${l.technician_name}: ${(l.notes || "").trim()}`);
+      const consolidated = [...stepNotes, finalText ? `Encerramento: ${finalText}` : ""]
+        .filter(Boolean)
+        .join("\n");
+
       const { error } = await supabase
         .from("service_orders")
         .update({
           status: "closed",
-          solution_description: solutionDescription.trim(),
+          solution_description: consolidated || finalText,
           spare_parts_used: spareParts.length > 0 ? spareParts : null,
           finished_at: now.toISOString(),
           malf_end_date: toSapDate(now),
