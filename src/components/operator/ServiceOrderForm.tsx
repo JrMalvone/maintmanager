@@ -309,6 +309,41 @@ export function ServiceOrderForm() {
             </div>
           </div>
 
+          {activeOrder && (
+            <div
+              role="alert"
+              className="rounded-lg border-2 border-status-stopped bg-status-stopped/10 p-4 space-y-2"
+            >
+              <div className="flex items-center gap-2 font-semibold text-status-stopped">
+                <AlertTriangle className="w-5 h-5" />
+                Esta máquina já possui uma O.S. {activeOrder.status === "open" ? "aberta" : "em andamento"}
+              </div>
+              <p className="text-sm text-foreground">
+                Aberta em{" "}
+                <span className="font-semibold">
+                  {new Date(activeOrder.created_at).toLocaleString("pt-BR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                {activeOrder.opener_name && (
+                  <>
+                    {" "}por <span className="font-semibold">{activeOrder.opener_name}</span>
+                  </>
+                )}
+              </p>
+              <p className="text-sm text-muted-foreground line-clamp-3">
+                {activeOrder.problem_description}
+              </p>
+              <p className="text-sm font-medium text-foreground">
+                Não é possível abrir outra ordem até que esta seja encerrada.
+              </p>
+            </div>
+          )}
+
           {machineCode && (
             <p className="text-sm text-muted-foreground">
               Código selecionado:{" "}
@@ -400,7 +435,7 @@ export function ServiceOrderForm() {
         <Button
           type="submit"
           className="w-full h-14 text-lg btn-industrial"
-          disabled={submitting || !machineId || !problemDescription.trim() || !openerName.trim() || !openerRegistry.trim()}
+          disabled={submitting || checkingActive || !!activeOrder || !machineId || !problemDescription.trim() || !openerName.trim() || !openerRegistry.trim()}
         >
           {submitting ? (
             <Loader2 className="w-6 h-6 animate-spin" />
