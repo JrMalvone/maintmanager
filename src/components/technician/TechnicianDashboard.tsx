@@ -26,8 +26,35 @@ export function TechnicianDashboard() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [historyDate, setHistoryDate] = useState<Date | undefined>();
-  const [sectorIds, setSectorIds] = useState<string[]>([]);
+  // Saved on this computer. A day filter, once active, always follows "today" on reopen.
+  const [historyDate, setHistoryDateState] = useState<Date | undefined>(() => {
+    try { return localStorage.getItem("cmms.orders.historyToday") === "1" ? new Date() : undefined; } catch { return undefined; }
+  });
+  const [sectorIds, setSectorIdsState] = useState<string[]>(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem("cmms.orders.sectors") || "[]");
+      return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+    } catch { return []; }
+  });
+  const setHistoryDate = (d: Date | undefined) => {
+    setHistoryDateState(d);
+    try { localStorage.setItem("cmms.orders.historyToday", d ? "1" : "0"); } catch { /* ignore */ }
+  };
+  const setSectorIds = (ids: string[]) => {
+    setSectorIdsState(ids);
+    try { localStorage.setItem("cmms.orders.sectors", JSON.stringify(ids)); } catch { /* ignore */ }
+  };
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setHistoryDateState((d) => {
+        if (!d) return d;
+        const now = new Date();
+        return d.toDateString() === now.toDateString() ? d : now;
+      });
+    }, 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   // Show the "open in new window" button only inside the desktop (Electron) app
   const isElectron =

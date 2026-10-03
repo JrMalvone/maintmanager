@@ -12,7 +12,7 @@ import { DowntimeChart } from "./DowntimeChart";
 import { DefectDonutChart } from "./DefectDonutChart";
 import { OpenClosedTrendChart } from "./OpenClosedTrendChart";
 import { OrderDetailSheet } from "@/components/technician/OrderDetailSheet";
-import { DashboardFilters, getDefaultFilter, type DateFilter } from "./DashboardFilters";
+import { DashboardFilters, loadSavedFilter, saveFilter, loadSavedSector, saveSector, presetRange, type DateFilter } from "./DashboardFilters";
 import { Loader2 } from "lucide-react";
 import { isWithinInterval, differenceInHours } from "date-fns";
 
@@ -22,8 +22,22 @@ export function ManagerDashboard() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [sectors, setSectors] = useState<{ id: string; shifts_count: number }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<DateFilter>(getDefaultFilter);
-  const [sectorId, setSectorId] = useState("all");
+  const [filter, setFilterState] = useState<DateFilter>(loadSavedFilter);
+  const [sectorId, setSectorIdState] = useState(loadSavedSector);
+  const setFilter = (f: DateFilter) => { setFilterState(f); saveFilter(f); };
+  const setSectorId = (id: string) => { setSectorIdState(id); saveSector(id); };
+
+  // Keep preset periods aligned with "today" when the day changes
+  useEffect(() => {
+    const t = setInterval(() => {
+      setFilterState((f) => {
+        if (f.preset === "custom") return f;
+        const next = presetRange(f.preset);
+        return next.end.getTime() === f.end.getTime() ? f : next;
+      });
+    }, 60_000);
+    return () => clearInterval(t);
+  }, []);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
