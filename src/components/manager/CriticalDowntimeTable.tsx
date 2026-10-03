@@ -10,10 +10,13 @@ import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
+import { operatingMinutes } from "@/lib/operatingTime";
+
 interface CriticalDowntimeTableProps {
   orders: ServiceOrder[];
   machines: Machine[];
   onOrderClick: (order: ServiceOrder) => void;
+  shiftsByMachine?: Map<string, number>;
 }
 
 interface CriticalEvent {

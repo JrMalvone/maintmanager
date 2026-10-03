@@ -8,11 +8,14 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 
+import { operatingMinutes } from "@/lib/operatingTime";
+
 interface DowntimeChartProps {
   orders: ServiceOrder[];
+  shiftsByMachine?: Map<string, number>;
 }
 
-export function DowntimeChart({ orders }: DowntimeChartProps) {
+export function DowntimeChart({ orders, shiftsByMachine }: DowntimeChartProps) {
   const [machines, setMachines] = useState<Machine[]>([]);
 
   useEffect(() => {
