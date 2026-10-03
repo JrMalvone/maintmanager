@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder, Machine } from "@/hooks/useData";
 import { machineLabel } from "@/lib/machineLabel";
 import { chartTooltipStyles } from "./chartTooltipStyles";
-import { differenceInMinutes } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
