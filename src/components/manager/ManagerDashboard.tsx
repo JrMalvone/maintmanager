@@ -79,6 +79,10 @@ export function ManagerDashboard() {
     .filter((s) => activeSectorIds.has(s.id) && (sectorId === "all" || s.id === sectorId))
     .reduce((acc, s) => acc + periodDays * (s.shifts_count ?? 3) * 8, 0);
 
+  const shiftsByMachine = new Map(
+    machines.map((m) => [m.id, sectors.find((s) => s.id === m.sector_id)?.shifts_count ?? 3])
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
