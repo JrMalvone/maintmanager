@@ -106,7 +106,7 @@ export function ManagerDashboard() {
         orders={orders}
         workLogs={workLogs}
         totalPeriodHours={totalPeriodHours}
-        shiftsByMachine={new Map(machines.map((m) => [m.id, sectors.find((s) => s.id === m.sector_id)?.shifts_count ?? 3]))}
+        shiftsByMachine={shiftsByMachine}
       />
 
       {/* Charts Row 1 */}
