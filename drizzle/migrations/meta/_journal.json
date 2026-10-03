@@ -8,6 +8,13 @@
       "when": 1790978397579,
       "tag": "0000_sector_shifts_count",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791047898161,
+      "tag": "0001_work_log_notes",
+      "breakpoints": true
     }
   ]
 }
