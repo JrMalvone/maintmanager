@@ -37,10 +37,8 @@ export function WorkLogHistory({ workLogs }: WorkLogHistoryProps) {
 
       <div className="space-y-2">
         {completedLogs.map((log) => (
-          <div
-            key={log.id}
-            className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border"
-          >
+          <div key={log.id} className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-status-closed/20 flex items-center justify-center">
                 <User className="w-4 h-4 text-status-closed" />
@@ -68,6 +66,12 @@ export function WorkLogHistory({ workLogs }: WorkLogHistoryProps) {
                 {log.ended_at ? formatDateTime(log.ended_at).split(" ")[1] : "-"}
               </p>
             </div>
+          </div>
+          {log.notes && (
+            <p className="text-sm whitespace-pre-wrap border-l-2 border-primary pl-3">
+              {log.notes}
+            </p>
+          )}
           </div>
         ))}
       </div>

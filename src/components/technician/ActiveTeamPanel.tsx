@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { WorkLog } from "@/hooks/useWorkLogs";
 import { formatElapsedTime } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -27,6 +28,7 @@ interface ActiveTeamPanelProps {
 export function ActiveTeamPanel({ workLogs, orderId, onUpdate }: ActiveTeamPanelProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
 
   const activeTechnicians = workLogs.filter((log) => log.ended_at === null);
 
@@ -40,12 +42,14 @@ export function ActiveTeamPanel({ workLogs, orderId, onUpdate }: ActiveTeamPanel
       if (!workLog) throw new Error("Log não encontrado");
 
       const durationMinutes = differenceInMinutes(now, new Date(workLog.started_at));
+      const note = (notes[workLogId] || "").trim().slice(0, 2000);
 
       const { error } = await supabase
         .from("work_logs")
         .update({
           ended_at: now.toISOString(),
           duration_minutes: durationMinutes,
+          notes: note || null,
         })
         .eq("id", workLogId);
 
@@ -146,6 +150,18 @@ export function ActiveTeamPanel({ workLogs, orderId, onUpdate }: ActiveTeamPanel
                       calculado automaticamente.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      O que foi realizado? <span className="text-muted-foreground">(opcional)</span>
+                    </label>
+                    <Textarea
+                      value={notes[log.id] || ""}
+                      onChange={(e) => setNotes((n) => ({ ...n, [log.id]: e.target.value }))}
+                      placeholder="Descreva o que foi feito até agora para o próximo manutentor..."
+                      maxLength={2000}
+                      rows={4}
+                    />
+                  </div>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction
