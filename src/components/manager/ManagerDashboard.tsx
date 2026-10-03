@@ -113,7 +113,7 @@ export function ManagerDashboard() {
 
       {/* Charts Row 2 - Advanced */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <DowntimeChart orders={orders} />
+        <DowntimeChart orders={orders} shiftsByMachine={shiftsByMachine} />
         <DefectDonutChart orders={orders} />
         <OpenClosedTrendChart orders={orders} dateFilter={filter} />
       </div>
@@ -123,6 +123,7 @@ export function ManagerDashboard() {
         orders={orders}
         machines={machines}
         onOrderClick={(order) => { setSelectedOrderId(order.id); setSheetOpen(true); }}
+        shiftsByMachine={shiftsByMachine}
       />
       <OrderDetailSheet
         order={allOrders.find((order) => order.id === selectedOrderId) ?? null}
