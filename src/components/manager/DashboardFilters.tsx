@@ -46,6 +46,45 @@ export function getDefaultFilter(): DateFilter {
   };
 }
 
+const FILTER_KEY = "cmms.dashboard.dateFilter";
+const SECTOR_KEY = "cmms.dashboard.sector";
+
+export function presetRange(preset: Exclude<PresetPeriod, "custom">, now = new Date()): DateFilter {
+  const start =
+    preset === "daily" ? startOfDay(now)
+    : preset === "weekly" ? startOfWeek(now, { locale: ptBR })
+    : preset === "monthly" ? startOfMonth(now)
+    : startOfYear(now);
+  return { start, end: endOfDay(now), preset };
+}
+
+export function loadSavedFilter(): DateFilter {
+  try {
+    const raw = localStorage.getItem(FILTER_KEY);
+    if (!raw) return getDefaultFilter();
+    const s = JSON.parse(raw);
+    if (s.preset === "custom" && s.start && s.end) {
+      return { start: new Date(s.start), end: new Date(s.end), preset: "custom" };
+    }
+    if (["daily", "weekly", "monthly", "yearly"].includes(s.preset)) return presetRange(s.preset);
+  } catch { /* ignore */ }
+  return getDefaultFilter();
+}
+
+export function saveFilter(f: DateFilter) {
+  try {
+    localStorage.setItem(FILTER_KEY, JSON.stringify({ preset: f.preset, start: f.start.toISOString(), end: f.end.toISOString() }));
+  } catch { /* ignore */ }
+}
+
+export function loadSavedSector(): string {
+  try { return localStorage.getItem(SECTOR_KEY) || "all"; } catch { return "all"; }
+}
+
+export function saveSector(id: string) {
+  try { localStorage.setItem(SECTOR_KEY, id); } catch { /* ignore */ }
+}
+
 export function DashboardFilters({ filter, onChange, sectorId, onSectorChange }: DashboardFiltersProps) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     filter.preset === "custom" ? { from: filter.start, to: filter.end } : undefined
