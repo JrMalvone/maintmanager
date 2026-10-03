@@ -10,10 +10,13 @@ import { format, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
+import { operatingMinutes } from "@/lib/operatingTime";
+
 interface CriticalDowntimeTableProps {
   orders: ServiceOrder[];
   machines: Machine[];
   onOrderClick: (order: ServiceOrder) => void;
+  shiftsByMachine?: Map<string, number>;
 }
 
 interface CriticalEvent {
@@ -22,7 +25,7 @@ interface CriticalEvent {
   downtimeMinutes: number;
 }
 
-export function CriticalDowntimeTable({ orders, machines, onOrderClick }: CriticalDowntimeTableProps) {
+export function CriticalDowntimeTable({ orders, machines, onOrderClick, shiftsByMachine }: CriticalDowntimeTableProps) {
   const [day, setDay] = useState<Date | undefined>(undefined);
 
   const machineMap = useMemo(() => {
@@ -37,9 +40,8 @@ export function CriticalDowntimeTable({ orders, machines, onOrderClick }: Critic
     for (const order of orders) {
       if (order.status !== "closed" || !order.is_machine_stopped || !order.finished_at) continue;
       if (day && !isSameDay(new Date(order.created_at), day)) continue;
-      const start = new Date(order.created_at);
-      const end = new Date(order.finished_at);
-      const downtimeMinutes = (end.getTime() - start.getTime()) / 60000;
+      const shifts = shiftsByMachine?.get(order.machine_id || "") ?? 3;
+      const downtimeMinutes = operatingMinutes(order.created_at, order.finished_at, shifts);
 
       if (!Number.isFinite(downtimeMinutes) || downtimeMinutes <= 180) continue;
 
@@ -54,7 +56,7 @@ export function CriticalDowntimeTable({ orders, machines, onOrderClick }: Critic
 
     events.sort((a, b) => b.downtimeMinutes - a.downtimeMinutes);
     return events;
-  }, [orders, machineMap, day]);
+  }, [orders, machineMap, day, shiftsByMachine]);
 
   function formatDuration(minutes: number): string {
     const h = Math.floor(minutes / 60);

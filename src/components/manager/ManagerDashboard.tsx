@@ -79,6 +79,10 @@ export function ManagerDashboard() {
     .filter((s) => activeSectorIds.has(s.id) && (sectorId === "all" || s.id === sectorId))
     .reduce((acc, s) => acc + periodDays * (s.shifts_count ?? 3) * 8, 0);
 
+  const shiftsByMachine = new Map(
+    machines.map((m) => [m.id, sectors.find((s) => s.id === m.sector_id)?.shifts_count ?? 3])
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -102,7 +106,7 @@ export function ManagerDashboard() {
         orders={orders}
         workLogs={workLogs}
         totalPeriodHours={totalPeriodHours}
-        shiftsByMachine={new Map(machines.map((m) => [m.id, sectors.find((s) => s.id === m.sector_id)?.shifts_count ?? 3]))}
+        shiftsByMachine={shiftsByMachine}
       />
 
       {/* Charts Row 1 */}
@@ -113,7 +117,7 @@ export function ManagerDashboard() {
 
       {/* Charts Row 2 - Advanced */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <DowntimeChart orders={orders} />
+        <DowntimeChart orders={orders} shiftsByMachine={shiftsByMachine} />
         <DefectDonutChart orders={orders} />
         <OpenClosedTrendChart orders={orders} dateFilter={filter} />
       </div>
@@ -123,6 +127,7 @@ export function ManagerDashboard() {
         orders={orders}
         machines={machines}
         onOrderClick={(order) => { setSelectedOrderId(order.id); setSheetOpen(true); }}
+        shiftsByMachine={shiftsByMachine}
       />
       <OrderDetailSheet
         order={allOrders.find((order) => order.id === selectedOrderId) ?? null}

@@ -3,16 +3,18 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ServiceOrder, Machine } from "@/hooks/useData";
 import { machineLabel } from "@/lib/machineLabel";
 import { chartTooltipStyles } from "./chartTooltipStyles";
-import { differenceInMinutes } from "date-fns";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 
+import { operatingMinutes } from "@/lib/operatingTime";
+
 interface DowntimeChartProps {
   orders: ServiceOrder[];
+  shiftsByMachine?: Map<string, number>;
 }
 
-export function DowntimeChart({ orders }: DowntimeChartProps) {
+export function DowntimeChart({ orders, shiftsByMachine }: DowntimeChartProps) {
   const [machines, setMachines] = useState<Machine[]>([]);
 
   useEffect(() => {
@@ -28,7 +30,8 @@ export function DowntimeChart({ orders }: DowntimeChartProps) {
 
   const downtimeMap = new Map<string, number>();
   stoppedOrders.forEach((o) => {
-    const mins = differenceInMinutes(new Date(o.finished_at!), new Date(o.created_at));
+    const shifts = shiftsByMachine?.get(o.machine_id || "") ?? 3;
+    const mins = operatingMinutes(o.created_at, o.finished_at!, shifts);
     downtimeMap.set(o.machine_id || "", (downtimeMap.get(o.machine_id || "") || 0) + mins);
   });
 
