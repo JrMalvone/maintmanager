@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useSectors, useMachines } from "@/hooks/useData";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,6 +27,14 @@ import {
 } from "lucide-react";
 
 type MaintenanceType = "electronic" | "mechanical";
+
+interface ActiveOrder {
+  id: string;
+  status: "open" | "in_progress";
+  created_at: string;
+  opener_name: string | null;
+  problem_description: string;
+}
 
 const orderSchema = z.object({
   openerName: z
@@ -63,6 +71,8 @@ export function ServiceOrderForm() {
   const [problemDescription, setProblemDescription] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
+  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null);
+  const [checkingActive, setCheckingActive] = useState(false);
   const { toast } = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -105,6 +115,16 @@ export function ServiceOrderForm() {
     setSubmitting(true);
 
     try {
+      const existing = await fetchActiveOrder(machineId);
+      if (existing) {
+        setActiveOrder(existing);
+        toast({
+          title: "Máquina já possui O.S. ativa",
+          description: "Não é possível abrir outra ordem para esta máquina até a atual ser encerrada.",
+          variant: "destructive",
+        });
+        return;
+      }
       const now = new Date();
       const machine = machines.find((m) => m.id === machineId);
       const machineCode = machine?.code || "";
@@ -170,6 +190,33 @@ export function ServiceOrderForm() {
     const machine = machines.find((m) => m.id === id);
     if (machine) setMachineCode(machine.code);
   }
+
+  async function fetchActiveOrder(id: string): Promise<ActiveOrder | null> {
+    const { data } = await supabase
+      .from("service_orders")
+      .select("id, status, created_at, opener_name, problem_description")
+      .eq("machine_id", id)
+      .in("status", ["open", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    return (data?.[0] as ActiveOrder) ?? null;
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    setActiveOrder(null);
+    if (!machineId) return;
+    setCheckingActive(true);
+    fetchActiveOrder(machineId).then((o) => {
+      if (!cancelled) {
+        setActiveOrder(o);
+        setCheckingActive(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [machineId]);
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in">
