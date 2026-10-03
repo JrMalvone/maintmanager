@@ -68,9 +68,10 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
   const mtbfMinutes = sortedStops.length > 1 ? Math.round(intervalSum / (sortedStops.length - 1)) : 0;
   const mtbfFormatted = sortedStops.length > 1 ? fmtMin(mtbfMinutes) : "—";
 
-  // Availability % over sector shift time
-  const availability = totalPeriodHours > 0
-    ? Math.min(Math.max(Math.round(((totalPeriodHours - totalDowntimeMinutes / 60) / totalPeriodHours) * 1000) / 10, 0), 100)
+  // Availability % = MTBF / (MTBF + MTTR) * 100
+  void totalPeriodHours;
+  const availability = sortedStops.length > 1 && mtbfMinutes + mttr > 0
+    ? Math.round((mtbfMinutes / (mtbfMinutes + mttr)) * 1000) / 10
     : 100;
 
   // Maintenance type split
@@ -155,7 +156,7 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
           <div>
             <p className="kpi-label">Disponibilidade</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Downtime: {totalDowntimeHours}h / {Math.round(totalPeriodHours)}h
+              MTBF: {mtbfFormatted} • MTTR: {mttrFormatted}
             </p>
           </div>
         </div>
