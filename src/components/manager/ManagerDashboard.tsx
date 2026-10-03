@@ -98,7 +98,12 @@ export function ManagerDashboard() {
 
       <DashboardFilters filter={filter} onChange={setFilter} sectorId={sectorId} onSectorChange={setSectorId} />
 
-      <KPICards orders={orders} workLogs={workLogs} totalPeriodHours={totalPeriodHours} />
+      <KPICards
+        orders={orders}
+        workLogs={workLogs}
+        totalPeriodHours={totalPeriodHours}
+        shiftsByMachine={new Map(machines.map((m) => [m.id, sectors.find((s) => s.id === m.sector_id)?.shifts_count ?? 3]))}
+      />
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

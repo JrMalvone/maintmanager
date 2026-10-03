@@ -14,14 +14,18 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { AvailabilityGauge } from "./AvailabilityGauge";
+import { operatingMinutes } from "@/lib/operatingTime";
 
 interface KPICardsProps {
   orders: ServiceOrder[];
   workLogs: WorkLog[];
   totalPeriodHours: number;
+  shiftsByMachine?: Map<string, number>;
 }
 
-export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) {
+export function KPICards({ orders, workLogs, totalPeriodHours, shiftsByMachine }: KPICardsProps) {
+  const shiftsOf = (o: ServiceOrder) => (o.machine_id && shiftsByMachine?.get(o.machine_id)) || 3;
+  const om = (a: string, b: string, o: ServiceOrder) => operatingMinutes(a, b, shiftsOf(o));
   // Qualified orders: closed + machine stopped + valid timestamps (used by MTTR, MTBF, MTTA, Availability, Downtime)
   const qualified = orders.filter(
     (o) => o.status === "closed" && o.is_machine_stopped && o.started_at && o.finished_at
@@ -29,15 +33,13 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
   const closedOrders = orders.filter((o) => o.status === "closed");
   const fmtMin = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`);
 
-  // MTTR = finished_at − started_at
-  const totalRepairTime = qualified.reduce(
-    (acc, o) => acc + Math.max(differenceInMinutes(new Date(o.finished_at!), new Date(o.started_at!)), 0), 0);
+  // MTTR = finished_at − started_at (productive minutes only)
+  const totalRepairTime = qualified.reduce((acc, o) => acc + om(o.started_at!, o.finished_at!, o), 0);
   const mttr = qualified.length > 0 ? Math.round(totalRepairTime / qualified.length) : 0;
   const mttrFormatted = fmtMin(mttr);
 
   // MTTA = started_at − created_at
-  const totalResponse = qualified.reduce(
-    (acc, o) => acc + Math.max(differenceInMinutes(new Date(o.started_at!), new Date(o.created_at)), 0), 0);
+  const totalResponse = qualified.reduce((acc, o) => acc + om(o.created_at, o.started_at!, o), 0);
   const mtta = qualified.length > 0 ? Math.round(totalResponse / qualified.length) : 0;
   const mttaFormatted = fmtMin(mtta);
 
@@ -53,17 +55,15 @@ export function KPICards({ orders, workLogs, totalPeriodHours }: KPICardsProps) 
   const closedCount = closedOrders.length;
 
   // Downtime = finished_at − created_at
-  const totalDowntimeMinutes = qualified.reduce(
-    (acc, o) => acc + Math.max(differenceInMinutes(new Date(o.finished_at!), new Date(o.created_at)), 0), 0);
-  const totalDowntimeHours = Math.round(totalDowntimeMinutes / 60 * 10) / 10; void totalDowntimeHours;
+  const totalDowntimeMinutes = qualified.reduce((acc, o) => acc + om(o.created_at, o.finished_at!, o), 0);
   const downtimeFormatted = fmtMin(totalDowntimeMinutes);
 
-  // MTBF = average interval between end of a stop (finished_at) and creation of the next stop (created_at)
+  // MTBF = average productive interval between end of a stop and creation of the next stop
   const sortedStops = [...qualified].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   let intervalSum = 0;
   for (let i = 1; i < sortedStops.length; i++) {
-    intervalSum += Math.max(differenceInMinutes(new Date(sortedStops[i].created_at), new Date(sortedStops[i - 1].finished_at!)), 0);
+    intervalSum += om(sortedStops[i - 1].finished_at!, sortedStops[i].created_at, sortedStops[i]);
   }
   const mtbfMinutes = sortedStops.length > 1 ? Math.round(intervalSum / (sortedStops.length - 1)) : 0;
   const mtbfFormatted = sortedStops.length > 1 ? fmtMin(mtbfMinutes) : "—";
