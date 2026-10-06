@@ -136,13 +136,13 @@ export function ManagerDashboard() {
         <OpenClosedTrendChart orders={orders} dateFilter={filter} />
       </div>
 
-      <TechnicianPerformance workLogs={workLogs} />
       <CriticalDowntimeTable
         orders={orders}
         machines={machines}
         onOrderClick={(order) => { setSelectedOrderId(order.id); setSheetOpen(true); }}
         shiftsByMachine={shiftsByMachine}
       />
+      <TechnicianPerformance workLogs={workLogs} orders={orders} shiftsByMachine={shiftsByMachine} />
       <OrderDetailSheet
         order={allOrders.find((order) => order.id === selectedOrderId) ?? null}
         open={sheetOpen}
