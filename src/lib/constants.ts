@@ -19,8 +19,8 @@ export const PRIORITY_LABELS = {
 
 // Machine status labels
 export const MACHINE_STATUS_LABELS = {
-  stopped: "Parada",
-  running: "Em Operação",
+  stopped: "Corretiva Emergencial",
+  running: "Corretiva Programada",
 } as const;
 
 // Maintenance type labels
