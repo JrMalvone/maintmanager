@@ -78,7 +78,7 @@ export function TechnicianPerformance({ workLogs, orders, shiftsByMachine }: Tec
     <div className="industrial-card p-6">
       <h3 className="text-lg font-semibold mb-1">Desempenho dos Técnicos</h3>
       <p className="text-xs text-muted-foreground mb-4">
-        Tempo de chegada e de reparo consideram apenas ordens encerradas com máquina parada, dentro dos turnos.
+        Tempo para atendimento e de reparo consideram apenas ordens encerradas com máquina parada, dentro dos turnos.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -87,7 +87,7 @@ export function TechnicianPerformance({ workLogs, orders, shiftsByMachine }: Tec
               <th className={`${th} text-left`}>Técnico</th>
               <th className={th}>Sessões</th>
               <th className={th}>Tempo Total</th>
-              <th className={th}>Tempo Médio até Chegar (MTTA)</th>
+              <th className={th}>Tempo Médio para Atendimento (MTTA)</th>
               <th className={th}>Tempo Médio de Reparo (MTTR)</th>
             </tr>
           </thead>
