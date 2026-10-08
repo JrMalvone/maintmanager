@@ -10,6 +10,7 @@ interface TvOrderCardProps {
   machine?: Machine;
   team: string[];
   now: Date;
+  unattended?: boolean;
 }
 
 function elapsedLabel(createdAt: string, now: Date) {
@@ -29,14 +30,15 @@ function elapsedClass(createdAt: string, now: Date) {
   return "text-[hsl(var(--status-closed))]";
 }
 
-export function TvOrderCard({ order, machine, team, now }: TvOrderCardProps) {
+export function TvOrderCard({ order, machine, team, now, unattended }: TvOrderCardProps) {
   const electronic = order.maintenance_type === "electronic";
 
   return (
     <article
       className={cn(
         "industrial-card min-h-[190px] p-3.5 flex flex-col",
-        order.is_machine_stopped && "border-l-4 border-l-status-stopped"
+        order.is_machine_stopped && "border-l-4 border-l-status-stopped",
+        unattended && "order-unattended"
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -64,6 +66,17 @@ export function TvOrderCard({ order, machine, team, now }: TvOrderCardProps) {
           {electronic ? <Zap className="h-3.5 w-3.5" /> : <Wrench className="h-3.5 w-3.5" />}
           {electronic ? "Elétrico" : "Mecânico"}
         </span>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs font-bold",
+            order.is_machine_stopped
+              ? "border-status-stopped/50 bg-status-stopped/20 text-status-stopped"
+              : "border-border bg-muted text-foreground"
+          )}
+        >
+          {order.is_machine_stopped && <AlertTriangle className="h-3.5 w-3.5" />}
+          {order.is_machine_stopped ? "Corretiva Emergencial" : "Corretiva Programada"}
+        </span>
         <span className={order.status === "open" ? "status-badge-open" : "status-badge-progress"}>
           {order.status === "open" ? "Aberta" : "Em andamento"}
         </span>
@@ -78,7 +91,7 @@ export function TvOrderCard({ order, machine, team, now }: TvOrderCardProps) {
           <div className="flex items-center gap-2">
             <UserRound className="h-4 w-4 shrink-0" />
             <span className="truncate font-semibold text-foreground">
-              {team.length > 0 ? team.join(", ") : "Aguardando técnico"}
+              {unattended ? "Sem técnico atuando" : team.join(", ")}
             </span>
           </div>
           <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-foreground">
