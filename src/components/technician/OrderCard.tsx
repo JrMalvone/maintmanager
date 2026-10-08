@@ -68,6 +68,27 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
   const [elapsedMin, setElapsedMin] = useState(0);
 
   const isClosed = order.status === "closed";
+  const [activeCount, setActiveCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isClosed) return;
+    let alive = true;
+    const load = () =>
+      supabase
+        .from("work_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("order_id", order.id)
+        .is("ended_at", null)
+        .then(({ count }) => { if (alive) setActiveCount(count ?? 0); });
+    load();
+    const channel = supabase
+      .channel(`card-worklogs-${order.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "work_logs", filter: `order_id=eq.${order.id}` }, load)
+      .subscribe();
+    const poll = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(poll); supabase.removeChannel(channel); };
+  }, [order.id, isClosed]);
+  const unattended = !isClosed && activeCount === 0;
 
   useEffect(() => {
     const compute = () => {
@@ -127,7 +148,8 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
       onClick={onClick}
       className={cn(
         "industrial-card p-4 text-left w-full transition-all hover:border-primary/50 hover:shadow-lg",
-        order.is_machine_stopped && "border-l-4 border-l-status-stopped"
+        order.is_machine_stopped && "border-l-4 border-l-status-stopped",
+        unattended && "order-unattended"
       )}
     >
       {/* 1. Header: Sector + Machine */}
@@ -164,7 +186,18 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
 
       {/* 2. Body: Maintenance type + Problem description */}
       <div className="mt-3 space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border",
+              order.is_machine_stopped
+                ? "bg-status-stopped/20 text-status-stopped border-status-stopped/50"
+                : "bg-muted text-foreground border-border"
+            )}
+          >
+            {order.is_machine_stopped && <AlertTriangle className="w-3 h-3" />}
+            {order.is_machine_stopped ? "Corretiva Emergencial" : "Corretiva Programada"}
+          </span>
           <span
             className={cn(
               "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border",

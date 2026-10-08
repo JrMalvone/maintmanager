@@ -198,6 +198,7 @@ export function TvOrdersPanel() {
                       order={order}
                       machine={order.machine_id ? machineById.get(order.machine_id) : undefined}
                       team={teamByOrder.get(order.id) ?? (order.technician_name ? [order.technician_name] : [])}
+                      unattended={!teamByOrder.has(order.id)}
                       now={now}
                     />
                   ))}
@@ -216,6 +217,7 @@ export function TvOrdersPanel() {
                       order={order}
                       machine={order.machine_id ? machineById.get(order.machine_id) : undefined}
                       team={teamByOrder.get(order.id) ?? (order.technician_name ? [order.technician_name] : [])}
+                      unattended={!teamByOrder.has(order.id)}
                       now={now}
                     />
                   ))}
