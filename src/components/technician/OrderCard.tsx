@@ -148,8 +148,8 @@ export function OrderCard({ order, onClick }: OrderCardProps) {
       onClick={onClick}
       className={cn(
         "industrial-card p-4 text-left w-full transition-all hover:border-primary/50 hover:shadow-lg",
-        order.is_machine_stopped && "border-l-4 border-l-status-stopped",
-        unattended && "order-unattended"
+        order.is_machine_stopped ? "border-l-4 border-l-status-stopped" : "border-l-4 border-l-status-open",
+        unattended && (order.is_machine_stopped ? "order-unattended" : "order-unattended-scheduled")
       )}
     >
       {/* 1. Header: Sector + Machine */}
