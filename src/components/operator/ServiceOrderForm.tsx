@@ -64,10 +64,10 @@ export function ServiceOrderForm() {
   // Machine info
   const [machineId, setMachineId] = useState("");
   const [machineCode, setMachineCode] = useState("");
-  const [isMachineStopped, setIsMachineStopped] = useState(false);
+  const [isMachineStopped, setIsMachineStopped] = useState<boolean | null>(null);
 
   // Defect info
-  const [maintenanceType, setMaintenanceType] = useState<MaintenanceType>("mechanical");
+  const [maintenanceType, setMaintenanceType] = useState<MaintenanceType | null>(null);
   const [problemDescription, setProblemDescription] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -95,6 +95,16 @@ export function ServiceOrderForm() {
       });
       return;
     }
+
+    if (isMachineStopped === null || !maintenanceType) {
+      toast({
+        title: "Seleção obrigatória",
+        description: "Escolha o tipo de corretiva e a categoria do defeito",
+        variant: "destructive",
+      });
+      return;
+    }
+
 
     const validation = orderSchema.safeParse({
       openerName: openerName.trim(),
@@ -170,8 +180,8 @@ export function ServiceOrderForm() {
       setMachineId("");
       setMachineCode("");
       setProblemDescription("");
-      setIsMachineStopped(false);
-      setMaintenanceType("mechanical");
+      setIsMachineStopped(null);
+      setMaintenanceType(null);
       setSelectedSector("");
       // Keep operator info for convenience
     } catch (error: any) {
@@ -351,36 +361,50 @@ export function ServiceOrderForm() {
             </p>
           )}
 
-          {/* Machine Status */}
+          {/* Corrective type (machine status) */}
           <div className="space-y-3">
-            <Label>Status da Máquina</Label>
-            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/50">
-              <div className="flex items-center gap-3">
-                {isMachineStopped ? (
-                  <AlertTriangle className="w-5 h-5 text-status-stopped" />
-                ) : (
-                  <CheckCircle className="w-5 h-5 text-status-running" />
-                )}
-                <span className={isMachineStopped ? "machine-stopped" : "machine-running"}>
-                  {isMachineStopped ? "Parada" : "Em Operação"}
-                </span>
-              </div>
-              <Switch
-                checked={isMachineStopped}
-                onCheckedChange={setIsMachineStopped}
-              />
-            </div>
+            <Label>Tipo de Corretiva *</Label>
+            <RadioGroup
+              value={isMachineStopped === null ? "" : isMachineStopped ? "emergency" : "scheduled"}
+              onValueChange={(v) => setIsMachineStopped(v === "emergency")}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+            >
+              <Label
+                htmlFor="scheduled"
+                className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  isMachineStopped === false
+                    ? "border-status-running bg-status-running/10"
+                    : "border-border hover:border-status-running/50"
+                }`}
+              >
+                <RadioGroupItem value="scheduled" id="scheduled" />
+                <CheckCircle className="w-5 h-5 text-status-running" />
+                <span className="font-medium">Corretiva Programada</span>
+              </Label>
+              <Label
+                htmlFor="emergency"
+                className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  isMachineStopped === true
+                    ? "border-status-stopped bg-status-stopped/10"
+                    : "border-border hover:border-status-stopped/50"
+                }`}
+              >
+                <RadioGroupItem value="emergency" id="emergency" />
+                <AlertTriangle className="w-5 h-5 text-status-stopped" />
+                <span className="font-medium">Corretiva Emergencial</span>
+              </Label>
+            </RadioGroup>
           </div>
         </div>
 
         {/* Defect Category */}
         <div className="industrial-card p-6 space-y-4">
           <h2 className="font-semibold text-lg border-b border-border pb-2">
-            Categoria do Defeito
+            Categoria do Defeito *
           </h2>
 
           <RadioGroup
-            value={maintenanceType}
+            value={maintenanceType ?? ""}
             onValueChange={(v) => setMaintenanceType(v as MaintenanceType)}
             className="grid grid-cols-2 gap-4"
           >
@@ -435,7 +459,7 @@ export function ServiceOrderForm() {
         <Button
           type="submit"
           className="w-full h-14 text-lg btn-industrial"
-          disabled={submitting || checkingActive || !!activeOrder || !machineId || !problemDescription.trim() || !openerName.trim() || !openerRegistry.trim()}
+          disabled={submitting || checkingActive || !!activeOrder || !machineId || isMachineStopped === null || !maintenanceType || !problemDescription.trim() || !openerName.trim() || !openerRegistry.trim()}
         >
           {submitting ? (
             <Loader2 className="w-6 h-6 animate-spin" />

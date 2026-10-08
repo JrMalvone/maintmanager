@@ -490,12 +490,12 @@ export function OrderDetailSheet({
               {order.is_machine_stopped ? (
                 <span className="machine-stopped">
                   <AlertTriangle className="w-4 h-4" />
-                  Máquina Parada
+                  Corretiva Emergencial
                 </span>
               ) : (
                 <span className="machine-running">
                   <CheckCircle className="w-4 h-4" />
-                  Em Operação
+                  Corretiva Programada
                 </span>
               )}
             </div>
@@ -610,7 +610,7 @@ export function OrderDetailSheet({
                     <div className="space-y-1">
                       <Label htmlFor="edit-machine-stopped">Status da Máquina</Label>
                       <p className="text-sm text-muted-foreground">
-                        {editMachineStopped ? "Máquina parada" : "Máquina em operação"}
+                        {editMachineStopped ? "Corretiva Emergencial" : "Corretiva Programada"}
                       </p>
                     </div>
                     <Switch
