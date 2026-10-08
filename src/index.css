@@ -287,4 +287,9 @@
   50% { box-shadow: 0 0 0 3px hsl(var(--status-stopped) / 0.9), 0 0 24px 4px hsl(var(--status-stopped) / 0.55); border-color: hsl(var(--status-stopped)); }
 }
 .order-unattended { animation: unattended-pulse 1.2s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .order-unattended { animation-duration: 2.5s; } }
+@keyframes unattended-pulse-scheduled {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--status-open) / 0); border-color: hsl(var(--border)); }
+  50% { box-shadow: 0 0 0 3px hsl(var(--status-open) / 0.9), 0 0 24px 4px hsl(var(--status-open) / 0.55); border-color: hsl(var(--status-open)); }
+}
+.order-unattended-scheduled { animation: unattended-pulse-scheduled 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .order-unattended, .order-unattended-scheduled { animation-duration: 2.5s; } }

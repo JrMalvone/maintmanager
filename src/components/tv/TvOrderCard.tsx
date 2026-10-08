@@ -37,8 +37,8 @@ export function TvOrderCard({ order, machine, team, now, unattended }: TvOrderCa
     <article
       className={cn(
         "industrial-card min-h-[190px] p-3.5 flex flex-col",
-        order.is_machine_stopped && "border-l-4 border-l-status-stopped",
-        unattended && "order-unattended"
+        order.is_machine_stopped ? "border-l-4 border-l-status-stopped" : "border-l-4 border-l-status-open",
+        unattended && (order.is_machine_stopped ? "order-unattended" : "order-unattended-scheduled")
       )}
     >
       <div className="flex items-start justify-between gap-3">
