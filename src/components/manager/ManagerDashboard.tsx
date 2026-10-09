@@ -13,11 +13,12 @@ import { DefectDonutChart } from "./DefectDonutChart";
 import { OpenClosedTrendChart } from "./OpenClosedTrendChart";
 import { OrderDetailSheet } from "@/components/technician/OrderDetailSheet";
 import { DashboardFilters, loadSavedFilter, saveFilter, loadSavedSector, saveSector, presetRange, type DateFilter } from "./DashboardFilters";
-import { Loader2, FileSpreadsheet } from "lucide-react";
+import { Loader2, FileSpreadsheet, FileText } from "lucide-react";
 import { isWithinInterval, differenceInHours } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useAppAuth } from "@/hooks/useAppAuth";
 import { exportDashboardExcel } from "@/lib/exportDashboardExcel";
+import { exportDashboardPdf } from "@/lib/exportDashboardPdf";
 
 export function ManagerDashboard() {
   const { role } = useAppAuth();
@@ -118,19 +119,24 @@ export function ManagerDashboard() {
             Indicadores de desempenho da manutenção industrial
           </p>
         </div>
-        {role === "gestor" && (
-          <Button
-            variant="outline"
-            onClick={() => exportDashboardExcel({
-              orders, workLogs, machines,
-              sectorNames: new Map(sectors.map((s) => [s.id, s.name])),
-              shiftsByMachine, start: filter.start, end: filter.end,
-              sectorLabel: sectorId === "all" ? "Todos" : sectors.find((s) => s.id === sectorId)?.name ?? "",
-            })}
-          >
-            <FileSpreadsheet className="w-4 h-4 mr-2" /> Exportar Excel
-          </Button>
-        )}
+        {role === "gestor" && (() => {
+          const params = {
+            orders, workLogs, machines,
+            sectorNames: new Map(sectors.map((s) => [s.id, s.name])),
+            shiftsByMachine, start: filter.start, end: filter.end,
+            sectorLabel: sectorId === "all" ? "Todos" : sectors.find((s) => s.id === sectorId)?.name ?? "",
+          };
+          return (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => exportDashboardPdf(params)}>
+                <FileText className="w-4 h-4 mr-2" /> Relatório PDF
+              </Button>
+              <Button variant="outline" onClick={() => exportDashboardExcel(params)}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" /> Exportar Excel
+              </Button>
+            </div>
+          );
+        })()}
       </div>
 
       <DashboardFilters filter={filter} onChange={setFilter} sectorId={sectorId} onSectorChange={setSectorId} />
