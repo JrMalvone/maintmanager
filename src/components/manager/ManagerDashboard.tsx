@@ -13,14 +13,18 @@ import { DefectDonutChart } from "./DefectDonutChart";
 import { OpenClosedTrendChart } from "./OpenClosedTrendChart";
 import { OrderDetailSheet } from "@/components/technician/OrderDetailSheet";
 import { DashboardFilters, loadSavedFilter, saveFilter, loadSavedSector, saveSector, presetRange, type DateFilter } from "./DashboardFilters";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileSpreadsheet } from "lucide-react";
 import { isWithinInterval, differenceInHours } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { useAppAuth } from "@/hooks/useAppAuth";
+import { exportDashboardExcel } from "@/lib/exportDashboardExcel";
 
 export function ManagerDashboard() {
+  const { role } = useAppAuth();
   const [allOrders, setAllOrders] = useState<ServiceOrder[]>([]);
   const [allWorkLogs, setAllWorkLogs] = useState<WorkLog[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
-  const [sectors, setSectors] = useState<{ id: string; shifts_count: number }[]>([]);
+  const [sectors, setSectors] = useState<{ id: string; name: string; shifts_count: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilterState] = useState<DateFilter>(loadSavedFilter);
   const [sectorId, setSectorIdState] = useState(loadSavedSector);
@@ -107,11 +111,26 @@ export function ManagerDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Analytics</h1>
-        <p className="text-muted-foreground mt-2">
-          Indicadores de desempenho da manutenção industrial
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard Analytics</h1>
+          <p className="text-muted-foreground mt-2">
+            Indicadores de desempenho da manutenção industrial
+          </p>
+        </div>
+        {role === "gestor" && (
+          <Button
+            variant="outline"
+            onClick={() => exportDashboardExcel({
+              orders, workLogs, machines,
+              sectorNames: new Map(sectors.map((s) => [s.id, s.name])),
+              shiftsByMachine, start: filter.start, end: filter.end,
+              sectorLabel: sectorId === "all" ? "Todos" : sectors.find((s) => s.id === sectorId)?.name ?? "",
+            })}
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2" /> Exportar Excel
+          </Button>
+        )}
       </div>
 
       <DashboardFilters filter={filter} onChange={setFilter} sectorId={sectorId} onSectorChange={setSectorId} />

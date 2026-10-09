@@ -30,6 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { FileDown } from "lucide-react";
+import { exportOrderPdf } from "@/lib/exportOrderPdf";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -471,6 +473,19 @@ export function OrderDetailSheet({
                 #{order.id.slice(0, 8)}
               </span>
             </SheetTitle>
+            {role === "gestor" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="self-start mt-2"
+                onClick={() => exportOrderPdf(order, machine ? {
+                  code: machine.code, model: machine.model, manufacturer: machine.manufacturer,
+                  sectorName: (machine as any).sectors?.name ?? null,
+                } : null, workLogs, aiResult)}
+              >
+                <FileDown className="w-4 h-4 mr-2" /> Exportar PDF
+              </Button>
+            )}
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
