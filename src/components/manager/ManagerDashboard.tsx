@@ -54,7 +54,7 @@ export function ManagerDashboard() {
       supabase.from("service_orders").select("*").order("created_at", { ascending: false }),
       supabase.from("work_logs").select("*").order("started_at", { ascending: false }),
       supabase.from("machines").select("*"),
-      supabase.from("sectors").select("id, shifts_count"),
+      supabase.from("sectors").select("id, name, shifts_count"),
     ]);
 
     if (ordersRes.data) setAllOrders(ordersRes.data as ServiceOrder[]);
