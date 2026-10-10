@@ -235,7 +235,7 @@ export function exportDashboardPdf({ orders, workLogs, techWorkLogs, techOrders,
   const techs = new Map<string, { sessions: number; total: number; resp: number[]; rep: number[] }>();
   const qMap = new Map(techOrders.filter((o) => o.status === "closed" && o.is_machine_stopped && o.started_at && o.finished_at).map((o) => [o.id, o]));
   const firstByTechOrder = new Map<string, { first: string; rep: number; o: ServiceOrder }>();
-  workLogs.forEach((l) => {
+  techWorkLogs.forEach((l) => {
     const t = techs.get(l.technician_name) ?? { sessions: 0, total: 0, resp: [], rep: [] };
     t.sessions++; t.total += l.duration_minutes || 0; techs.set(l.technician_name, t);
     const o = qMap.get(l.order_id);
