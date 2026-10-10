@@ -26,6 +26,7 @@ export function ManagerDashboard() {
   const [allWorkLogs, setAllWorkLogs] = useState<WorkLog[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [sectors, setSectors] = useState<{ id: string; name: string; shifts_count: number }[]>([]);
+  const [staff, setStaff] = useState<{ registration_number: string; preferred_sector_id: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilterState] = useState<DateFilter>(loadSavedFilter);
   const [sectorId, setSectorIdState] = useState(loadSavedSector);
@@ -51,17 +52,19 @@ export function ManagerDashboard() {
   }, []);
 
   async function fetchData() {
-    const [ordersRes, workLogsRes, machinesRes, sectorsRes] = await Promise.all([
+    const [ordersRes, workLogsRes, machinesRes, sectorsRes, staffRes] = await Promise.all([
       supabase.from("service_orders").select("*").order("created_at", { ascending: false }),
       supabase.from("work_logs").select("*").order("started_at", { ascending: false }),
       supabase.from("machines").select("*"),
       supabase.from("sectors").select("id, name, shifts_count"),
+      supabase.from("maintenance_staff").select("registration_number, preferred_sector_id"),
     ]);
 
     if (ordersRes.data) setAllOrders(ordersRes.data as ServiceOrder[]);
     if (workLogsRes.data) setAllWorkLogs(workLogsRes.data as WorkLog[]);
     if (machinesRes.data) setMachines(machinesRes.data);
     if (sectorsRes.data) setSectors(sectorsRes.data);
+    if (staffRes.data) setStaff(staffRes.data);
     setLoading(false);
   }
 
@@ -102,6 +105,14 @@ export function ManagerDashboard() {
     machines.map((m) => [m.id, sectors.find((s) => s.id === m.sector_id)?.shifts_count ?? 3])
   );
 
+  // Technician performance: staff whose preferred sector is the filtered one, counting all their work (any sector)
+  const sectorStaffRegs = sectorId === "all"
+    ? null
+    : new Set(staff.filter((s) => s.preferred_sector_id === sectorId).map((s) => s.registration_number));
+  const techWorkLogs = sectorStaffRegs
+    ? workLogs.filter((l) => l.technician_registry && sectorStaffRegs.has(l.technician_registry))
+    : workLogs;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -121,7 +132,7 @@ export function ManagerDashboard() {
         </div>
         {role === "gestor" && (() => {
           const params = {
-            orders, workLogs, machines,
+            orders, workLogs, machines, techWorkLogs, techOrders: allOrders,
             sectorNames: new Map(sectors.map((s) => [s.id, s.name])),
             shiftsByMachine, start: filter.start, end: filter.end,
             sectorLabel: sectorId === "all" ? "Todos" : sectors.find((s) => s.id === sectorId)?.name ?? "",
@@ -167,7 +178,7 @@ export function ManagerDashboard() {
         onOrderClick={(order) => { setSelectedOrderId(order.id); setSheetOpen(true); }}
         shiftsByMachine={shiftsByMachine}
       />
-      <TechnicianPerformance workLogs={workLogs} orders={orders} shiftsByMachine={shiftsByMachine} />
+      <TechnicianPerformance workLogs={techWorkLogs} orders={allOrders} shiftsByMachine={shiftsByMachine} />
       <OrderDetailSheet
         order={allOrders.find((order) => order.id === selectedOrderId) ?? null}
         open={sheetOpen}
