@@ -11,6 +11,8 @@ const STATUS: Record<string, string> = { open: "Aberta", in_progress: "Em Andame
 interface Params {
   orders: ServiceOrder[];
   workLogs: WorkLog[];
+  techWorkLogs: WorkLog[];
+  techOrders: ServiceOrder[];
   machines: Machine[];
   sectorNames: Map<string, string>;
   shiftsByMachine: Map<string, number>;
@@ -19,7 +21,7 @@ interface Params {
   sectorLabel: string;
 }
 
-export function exportDashboardExcel({ orders, workLogs, machines, sectorNames, shiftsByMachine, start, end, sectorLabel }: Params) {
+export function exportDashboardExcel({ orders, workLogs, techWorkLogs, techOrders, machines, sectorNames, shiftsByMachine, start, end, sectorLabel }: Params) {
   const shiftsOf = (o: ServiceOrder) => (o.machine_id && shiftsByMachine.get(o.machine_id)) || 3;
   const om = (a: string, b: string, o: ServiceOrder) => operatingMinutes(a, b, shiftsOf(o));
   const machineById = new Map(machines.map((m) => [m.id, m]));
@@ -107,8 +109,8 @@ export function exportDashboardExcel({ orders, workLogs, machines, sectorNames, 
 
   const techs = new Map<string, { sessions: number; total: number; resp: number; rep: number; n: number }>();
   const perOrder = new Map<string, { first: string; rep: number; o: ServiceOrder }>();
-  const qMap = new Map(qualified.map((o) => [o.id, o]));
-  workLogs.forEach((l) => {
+  const qMap = new Map(techOrders.filter((o) => o.status === "closed" && o.is_machine_stopped && o.started_at && o.finished_at).map((o) => [o.id, o]));
+  techWorkLogs.forEach((l) => {
     if (l.duration_minutes === null) return;
     const t = techs.get(l.technician_name) ?? { sessions: 0, total: 0, resp: 0, rep: 0, n: 0 };
     t.sessions++; t.total += l.duration_minutes || 0;

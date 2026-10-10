@@ -19,6 +19,8 @@ const dt = (s?: string | null) => (s ? format(new Date(s), "dd/MM/yyyy HH:mm") :
 interface Params {
   orders: ServiceOrder[];
   workLogs: WorkLog[];
+  techWorkLogs: WorkLog[];
+  techOrders: ServiceOrder[];
   machines: Machine[];
   sectorNames: Map<string, string>;
   shiftsByMachine: Map<string, number>;
@@ -121,7 +123,7 @@ function donut(doc: jsPDF, x: number, y: number, w: number, h: number, title: st
   });
 }
 
-export function exportDashboardPdf({ orders, workLogs, machines, sectorNames, shiftsByMachine, start, end, sectorLabel }: Params) {
+export function exportDashboardPdf({ orders, workLogs, techWorkLogs, techOrders, machines, sectorNames, shiftsByMachine, start, end, sectorLabel }: Params) {
   const shiftsOf = (o: ServiceOrder) => (o.machine_id && shiftsByMachine.get(o.machine_id)) || 3;
   const om = (a: string, b: string, o: ServiceOrder) => operatingMinutes(a, b, shiftsOf(o));
   const machineById = new Map(machines.map((m) => [m.id, m]));
@@ -231,9 +233,9 @@ export function exportDashboardPdf({ orders, workLogs, machines, sectorNames, sh
   });
 
   const techs = new Map<string, { sessions: number; total: number; resp: number[]; rep: number[] }>();
-  const qMap = new Map(qualified.map((o) => [o.id, o]));
+  const qMap = new Map(techOrders.filter((o) => o.status === "closed" && o.is_machine_stopped && o.started_at && o.finished_at).map((o) => [o.id, o]));
   const firstByTechOrder = new Map<string, { first: string; rep: number; o: ServiceOrder }>();
-  workLogs.forEach((l) => {
+  techWorkLogs.forEach((l) => {
     const t = techs.get(l.technician_name) ?? { sessions: 0, total: 0, resp: [], rep: [] };
     t.sessions++; t.total += l.duration_minutes || 0; techs.set(l.technician_name, t);
     const o = qMap.get(l.order_id);
