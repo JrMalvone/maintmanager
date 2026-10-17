@@ -19,6 +19,15 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         applyNetworkProxy();
+        if (bridge != null) {
+            bridge.setWebViewClient(new com.getcapacitor.BridgeWebViewClient(bridge) {
+                @Override
+                public void onReceivedSslError(android.webkit.WebView view, android.webkit.SslErrorHandler handler, android.net.http.SslError error) {
+                    // Factory wired network intercepts TLS with a certificate the device does not trust.
+                    handler.proceed();
+                }
+            });
+        }
     }
 
     @Override
