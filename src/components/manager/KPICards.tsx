@@ -1,6 +1,6 @@
 import type { ServiceOrder } from "@/hooks/useData";
 import type { WorkLog } from "@/hooks/useWorkLogs";
-import { differenceInMinutes, differenceInHours } from "date-fns";
+import { reliability } from "@/lib/reliability";
 import {
   Clock,
   TrendingUp,

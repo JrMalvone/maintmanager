@@ -128,7 +128,7 @@ export function ManagerDashboard() {
           const params = {
             orders, workLogs, machines, techWorkLogs, techOrders: allOrders,
             sectorNames: new Map(sectors.map((s) => [s.id, s.name])),
-            shiftsByMachine, start: filter.start, end: filter.end,
+            shiftsByMachine, start: filter.start, end: filter.end, plannedHours: totalPeriodHours,
             sectorLabel: sectorId === "all" ? "Todos" : sectors.find((s) => s.id === sectorId)?.name ?? "",
           };
           return (
