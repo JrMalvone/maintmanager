@@ -192,7 +192,7 @@ export default function EquipmentPage() {
   }
 
   return (
-    <DashboardLayout requiredRoles={["gestor", "manutencao"]}>
+    <DashboardLayout requiredRoles={["gestor"]}>
       <div className="animate-fade-in space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Equipamentos</h1>
