@@ -49,13 +49,16 @@ Indicadores: ${Object.entries(d.kpis).map(([k, v]) => `${k}: ${v}`).join(" | ")}
 Histórico de ordens de serviço:
 ${hist}
 
-Escreva um parecer técnico de engenharia de confiabilidade em Markdown, com as seções:
-## Resumo executivo
-## Falhas recorrentes (modos de falha que se repetem, com quantidade)
-## Causas prováveis
-## Plano de ação recomendado (preventiva/preditiva, itens objetivos)
-## Classificação de risco (Baixo, Médio ou Crítico, com justificativa)
-Seja direto e prático, sem inventar dados que não estão no histórico.`;
+Responda EXATAMENTE neste formato Markdown, no máximo 12 linhas no total:
+**Diagnóstico:** <1 a 2 frases com números reais do período: paradas, tempo parado, sistema mais afetado>
+**Falha crítica:** <componente/modo de falha que mais derruba a disponibilidade, com nº de ocorrências>
+**Plano de ação:**
+1. <ação concreta e específica>
+2. <ação concreta e específica>
+3. <ação concreta e específica>
+**Risco:** <Baixo/Médio/Crítico> — <justificativa em 1 linha>
+
+Regras: sem introdução, sem conclusão, sem teoria, sem recomendações genéricas (ex.: "treinar a equipe"). Cada item em 1 linha. Não invente dados fora do histórico. Se não houver falhas no período, diga isso em 1 linha e dê o risco.`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
