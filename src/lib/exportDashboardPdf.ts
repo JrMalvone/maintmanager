@@ -4,6 +4,7 @@ import { format, eachDayOfInterval, startOfDay } from "date-fns";
 import type { ServiceOrder, Machine } from "@/hooks/useData";
 import type { WorkLog } from "@/hooks/useWorkLogs";
 import { operatingMinutes } from "@/lib/operatingTime";
+import { reliability } from "@/lib/reliability";
 
 type RGB = [number, number, number];
 const DARK: RGB = [30, 41, 59];
@@ -27,6 +28,7 @@ interface Params {
   start: Date;
   end: Date;
   sectorLabel: string;
+  plannedHours: number;
 }
 
 function barChart(doc: jsPDF, x: number, y: number, w: number, h: number, title: string, data: { label: string; value: number; display?: string }[], color: RGB) {
@@ -123,7 +125,7 @@ function donut(doc: jsPDF, x: number, y: number, w: number, h: number, title: st
   });
 }
 
-export function exportDashboardPdf({ orders, workLogs, techWorkLogs, techOrders, machines, sectorNames, shiftsByMachine, start, end, sectorLabel }: Params) {
+export function exportDashboardPdf({ orders, workLogs, techWorkLogs, techOrders, machines, sectorNames, shiftsByMachine, start, end, sectorLabel, plannedHours }: Params) {
   const shiftsOf = (o: ServiceOrder) => (o.machine_id && shiftsByMachine.get(o.machine_id)) || 3;
   const om = (a: string, b: string, o: ServiceOrder) => operatingMinutes(a, b, shiftsOf(o));
   const machineById = new Map(machines.map((m) => [m.id, m]));
@@ -136,11 +138,7 @@ export function exportDashboardPdf({ orders, workLogs, techWorkLogs, techOrders,
   const mttr = qualified.length ? qualified.reduce((a, o) => a + om(o.started_at!, o.finished_at!, o), 0) / qualified.length : 0;
   const mtta = qualified.length ? qualified.reduce((a, o) => a + om(o.created_at, o.started_at!, o), 0) / qualified.length : 0;
   const downtime = qualified.reduce((a, o) => a + om(o.created_at, o.finished_at!, o), 0);
-  const sorted = [...qualified].sort((a, b) => a.created_at.localeCompare(b.created_at));
-  let gap = 0;
-  for (let i = 1; i < sorted.length; i++) gap += om(sorted[i - 1].finished_at!, sorted[i].created_at, sorted[i]);
-  const mtbf = sorted.length > 1 ? gap / (sorted.length - 1) : 0;
-  const availability = sorted.length > 1 && mtbf + mttr > 0 ? (mtbf / (mtbf + mttr)) * 100 : 100;
+  const { mtbf, availability } = reliability(plannedHours * 60, downtime, qualified.length);
   const manMin = workLogs.reduce((a, l) => a + (l.duration_minutes || 0), 0);
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -158,7 +156,7 @@ export function exportDashboardPdf({ orders, workLogs, techWorkLogs, techOrders,
   // KPI boxes
   const kpis: [string, string, RGB][] = [
     ["Disponibilidade", `${availability.toFixed(1).replace(".", ",")}%`, availability >= 90 ? GREEN : availability >= 75 ? ORANGE : RED],
-    ["MTBF", sorted.length > 1 ? fmtMin(mtbf) : "—", BLUE],
+    ["MTBF", plannedHours > 0 ? fmtMin(mtbf) : "—", BLUE],
     ["MTTR", fmtMin(mttr), BLUE],
     ["MTTA", fmtMin(mtta), BLUE],
     ["Downtime", fmtMin(downtime), RED],

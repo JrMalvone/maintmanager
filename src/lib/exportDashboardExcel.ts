@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import type { ServiceOrder, Machine } from "@/hooks/useData";
 import type { WorkLog } from "@/hooks/useWorkLogs";
 import { operatingMinutes } from "@/lib/operatingTime";
+import { reliability } from "@/lib/reliability";
 
 const fmtMin = (m: number) => (m < 60 ? `${Math.round(m)} min` : `${Math.floor(m / 60)}h ${Math.round(m % 60)}m`);
 const dt = (s?: string | null) => (s ? format(new Date(s), "dd/MM/yyyy HH:mm") : "");
@@ -19,9 +20,10 @@ interface Params {
   start: Date;
   end: Date;
   sectorLabel: string;
+  plannedHours: number;
 }
 
-export function exportDashboardExcel({ orders, workLogs, techWorkLogs, techOrders, machines, sectorNames, shiftsByMachine, start, end, sectorLabel }: Params) {
+export function exportDashboardExcel({ orders, workLogs, techWorkLogs, techOrders, machines, sectorNames, shiftsByMachine, start, end, sectorLabel, plannedHours }: Params) {
   const shiftsOf = (o: ServiceOrder) => (o.machine_id && shiftsByMachine.get(o.machine_id)) || 3;
   const om = (a: string, b: string, o: ServiceOrder) => operatingMinutes(a, b, shiftsOf(o));
   const machineById = new Map(machines.map((m) => [m.id, m]));
@@ -31,11 +33,7 @@ export function exportDashboardExcel({ orders, workLogs, techWorkLogs, techOrder
   const mttr = qualified.length ? qualified.reduce((a, o) => a + om(o.started_at!, o.finished_at!, o), 0) / qualified.length : 0;
   const mtta = qualified.length ? qualified.reduce((a, o) => a + om(o.created_at, o.started_at!, o), 0) / qualified.length : 0;
   const downtime = qualified.reduce((a, o) => a + om(o.created_at, o.finished_at!, o), 0);
-  const sorted = [...qualified].sort((a, b) => a.created_at.localeCompare(b.created_at));
-  let gap = 0;
-  for (let i = 1; i < sorted.length; i++) gap += om(sorted[i - 1].finished_at!, sorted[i].created_at, sorted[i]);
-  const mtbf = sorted.length > 1 ? gap / (sorted.length - 1) : 0;
-  const availability = sorted.length > 1 && mtbf + mttr > 0 ? (mtbf / (mtbf + mttr)) * 100 : 100;
+  const { mtbf, availability } = reliability(plannedHours * 60, downtime, qualified.length);
   const manMin = workLogs.reduce((a, l) => a + (l.duration_minutes || 0), 0);
 
   const summary = [
@@ -46,7 +44,7 @@ export function exportDashboardExcel({ orders, workLogs, techWorkLogs, techOrder
     [],
     ["Indicador", "Valor"],
     ["Disponibilidade (%)", Math.round(availability * 10) / 10],
-    ["MTBF", sorted.length > 1 ? fmtMin(mtbf) : "—"],
+    ["MTBF", plannedHours > 0 ? fmtMin(mtbf) : "—"],
     ["MTTR", fmtMin(mttr)],
     ["MTTA", fmtMin(mtta)],
     ["Downtime", fmtMin(downtime)],

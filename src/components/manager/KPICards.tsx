@@ -1,6 +1,6 @@
 import type { ServiceOrder } from "@/hooks/useData";
 import type { WorkLog } from "@/hooks/useWorkLogs";
-import { differenceInMinutes, differenceInHours } from "date-fns";
+import { reliability } from "@/lib/reliability";
 import {
   Clock,
   TrendingUp,
@@ -58,21 +58,11 @@ export function KPICards({ orders, workLogs, totalPeriodHours, shiftsByMachine }
   const totalDowntimeMinutes = qualified.reduce((acc, o) => acc + om(o.created_at, o.finished_at!, o), 0);
   const downtimeFormatted = fmtMin(totalDowntimeMinutes);
 
-  // MTBF = average productive interval between end of a stop and creation of the next stop
-  const sortedStops = [...qualified].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  let intervalSum = 0;
-  for (let i = 1; i < sortedStops.length; i++) {
-    intervalSum += om(sortedStops[i - 1].finished_at!, sortedStops[i].created_at, sortedStops[i]);
-  }
-  const mtbfMinutes = sortedStops.length > 1 ? Math.round(intervalSum / (sortedStops.length - 1)) : 0;
-  const mtbfFormatted = sortedStops.length > 1 ? fmtMin(mtbfMinutes) : "—";
-
-  // Availability % = MTBF / (MTBF + MTTR) * 100
-  void totalPeriodHours;
-  const availability = sortedStops.length > 1 && mtbfMinutes + mttr > 0
-    ? Math.round((mtbfMinutes / (mtbfMinutes + mttr)) * 1000) / 10
-    : 100;
+  // MTBF & Availability from planned time of all active machines in scope (see lib/reliability)
+  const rel = reliability(totalPeriodHours * 60, totalDowntimeMinutes, qualified.length);
+  const mtbfMinutes = rel.mtbf;
+  const mtbfFormatted = totalPeriodHours > 0 ? fmtMin(mtbfMinutes) : "—";
+  const availability = rel.availability;
 
   // Maintenance type split
   const closedAll = orders.filter((o) => o.status === "closed");

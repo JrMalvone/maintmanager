@@ -14,7 +14,8 @@ import { OpenClosedTrendChart } from "./OpenClosedTrendChart";
 import { OrderDetailSheet } from "@/components/technician/OrderDetailSheet";
 import { DashboardFilters, loadSavedFilter, saveFilter, loadSavedSector, saveSector, presetRange, type DateFilter } from "./DashboardFilters";
 import { Loader2, FileSpreadsheet, FileText } from "lucide-react";
-import { isWithinInterval, differenceInHours } from "date-fns";
+import { isWithinInterval } from "date-fns";
+import { plannedMinutes } from "@/lib/reliability";
 import { Button } from "@/components/ui/button";
 import { useAppAuth } from "@/hooks/useAppAuth";
 import { exportDashboardExcel } from "@/lib/exportDashboardExcel";
@@ -89,21 +90,15 @@ export function ManagerDashboard() {
     return isWithinInterval(date, { start: filter.start, end: filter.end });
   });
 
-  // Planned operating hours = days elapsed in filter × (shifts × 8h), summed per sector with active machines
-  const effectiveEnd = filter.end > new Date() ? new Date() : filter.end;
-  const periodDays = Math.max(differenceInHours(effectiveEnd, filter.start), 0) / 24;
-  const activeSectorIds = new Set(
-    machines
-      .filter((m) => (m as { status?: string }).status !== "inactive" && m.sector_id)
-      .map((m) => m.sector_id as string)
-  );
-  const totalPeriodHours = sectors
-    .filter((s) => activeSectorIds.has(s.id) && (sectorId === "all" || s.id === sectorId))
-    .reduce((acc, s) => acc + periodDays * (s.shifts_count ?? 3) * 8, 0);
-
   const shiftsByMachine = new Map(
     machines.map((m) => [m.id, sectors.find((s) => s.id === m.sector_id)?.shifts_count ?? 3])
   );
+
+  // Planned operating hours = days elapsed × shifts × 8h, summed over every active machine in scope
+  const totalPeriodHours = machines
+    .filter((m) => (m as { status?: string }).status !== "inactive")
+    .filter((m) => sectorId === "all" || m.sector_id === sectorId)
+    .reduce((acc, m) => acc + plannedMinutes(filter.start, filter.end, shiftsByMachine.get(m.id) ?? 3) / 60, 0);
 
   // Technician performance: staff whose preferred sector is the filtered one, counting all their work (any sector)
   const sectorStaffRegs = sectorId === "all"
@@ -134,7 +129,7 @@ export function ManagerDashboard() {
           const params = {
             orders, workLogs, machines, techWorkLogs, techOrders: allOrders,
             sectorNames: new Map(sectors.map((s) => [s.id, s.name])),
-            shiftsByMachine, start: filter.start, end: filter.end,
+            shiftsByMachine, start: filter.start, end: filter.end, plannedHours: totalPeriodHours,
             sectorLabel: sectorId === "all" ? "Todos" : sectors.find((s) => s.id === sectorId)?.name ?? "",
           };
           return (

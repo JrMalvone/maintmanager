@@ -1,6 +1,7 @@
 import type { ServiceOrder } from "@/hooks/useData";
 import type { WorkLog } from "@/hooks/useWorkLogs";
 import { operatingMinutes } from "@/lib/operatingTime";
+import { plannedMinutes, reliability } from "@/lib/reliability";
 
 export interface MachineMetrics {
   totalOrders: number;
@@ -23,6 +24,7 @@ export function computeMachineMetrics(
   orders: ServiceOrder[],
   workLogs: WorkLog[],
   shifts = 3,
+  period?: { start: Date; end: Date },
 ): MachineMetrics {
   const om = (a: string, b: string) => operatingMinutes(a, b, shifts);
   const q = orders
@@ -35,11 +37,10 @@ export function computeMachineMetrics(
   const mttr = q.length ? Math.round(repair / q.length) : 0;
   const mtta = q.length ? Math.round(resp / q.length) : 0;
 
-  let gap = 0;
-  for (let i = 1; i < q.length; i++) gap += om(q[i - 1].finished_at!, q[i].created_at);
-  const mtbf = q.length > 1 ? Math.round(gap / (q.length - 1)) : null;
-  const availability =
-    mtbf !== null && mtbf + mttr > 0 ? Math.round((mtbf / (mtbf + mttr)) * 1000) / 10 : 100;
+  const planned = period ? plannedMinutes(period.start, period.end, shifts) : 0;
+  const rel = reliability(planned, downtime, q.length);
+  const mtbf: number | null = period ? rel.mtbf : null;
+  const availability = rel.availability;
 
   const orderIds = new Set(orders.map((o) => o.id));
   const manMin = workLogs
