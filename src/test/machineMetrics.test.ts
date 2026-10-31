@@ -10,3 +10,18 @@ describe("machine metrics", () => {
     expect(m.totalOrders).toBe(2);
   });
 });
+
+import { reliability, plannedMinutes } from "@/lib/reliability";
+describe("reliability formulas", () => {
+  it("availability = (planned − downtime) / planned", () => {
+    expect(reliability(1000, 50, 1).availability).toBe(95);
+  });
+  it("MTBF = operating time / stops, even with one stop", () => {
+    expect(reliability(1000, 100, 1).mtbf).toBe(900);
+    expect(reliability(1000, 100, 3).mtbf).toBe(300);
+  });
+  it("planned time = days × shifts × 8h", () => {
+    const s = new Date("2026-10-01T00:00:00Z"), e = new Date("2026-10-02T00:00:00Z");
+    expect(plannedMinutes(s, e, 2, new Date("2027-01-01"))).toBe(960);
+  });
+});

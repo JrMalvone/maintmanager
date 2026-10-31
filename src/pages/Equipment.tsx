@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Cog, Search, Loader2, Sparkles, FileText, Activity, AlertTriangle, CheckCircle2, Wrench } from "lucide-react";
 import { toast } from "sonner";
+import { OrderDetailSheet } from "@/components/technician/OrderDetailSheet";
 import { cn } from "@/lib/utils";
 
 type Sector = { id: string; name: string; shifts_count: number };
@@ -43,9 +44,9 @@ export default function EquipmentPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
+  async function load() {
       const [o, l, m, s] = await Promise.all([
         supabase.from("service_orders").select("*").order("created_at", { ascending: false }),
         supabase.from("work_logs").select("*"),
@@ -57,8 +58,8 @@ export default function EquipmentPage() {
       setMachines((m.data as Machine[]) || []);
       setSectors((s.data as Sector[]) || []);
       setLoading(false);
-    })();
-  }, []);
+  }
+  useEffect(() => { load(); }, []);
 
   const sectorName = (id: string | null) => sectors.find((s) => s.id === id)?.name || "Sem setor";
 
@@ -76,7 +77,7 @@ export default function EquipmentPage() {
         const live = orders.filter((o) => o.machine_id === m.id && o.status !== "closed");
         const all = [...mo, ...live.filter((x) => !mo.includes(x))];
         const shifts = sectors.find((s) => s.id === m.sector_id)?.shifts_count || 3;
-        return { machine: m, orders: mo, metrics: { ...computeMachineMetrics(mo, logs, shifts), openNow: computeMachineMetrics(all, [], shifts).openNow } };
+        return { machine: m, orders: mo, metrics: { ...computeMachineMetrics(mo, logs, shifts, filter), openNow: computeMachineMetrics(all, [], shifts).openNow } };
       });
   }, [orders, logs, machines, sectors, sectorId, filter]);
 
@@ -348,7 +349,7 @@ export default function EquipmentPage() {
                     </TableHeader>
                     <TableBody>
                       {sel.orders.map((o) => (
-                        <TableRow key={o.id}>
+                        <TableRow key={o.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setOrderId(o.id)}>
                           <TableCell className="whitespace-nowrap text-xs">{format(new Date(o.created_at), "dd/MM/yy HH:mm")}</TableCell>
                           <TableCell className="text-xs">
                             {o.maintenance_type === "electronic" ? "Elétrica" : "Mecânica"}
@@ -367,6 +368,12 @@ export default function EquipmentPage() {
           )}
         </SheetContent>
       </Sheet>
+      <OrderDetailSheet
+        order={orders.find((o) => o.id === orderId) ?? null}
+        open={!!orderId}
+        onOpenChange={(o) => !o && setOrderId(null)}
+        onUpdate={load}
+      />
     </DashboardLayout>
   );
 }
