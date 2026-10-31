@@ -26,7 +26,7 @@ type Row = { machine: Machine & { status?: string }; metrics: MachineMetrics; or
 const riskLabel = { baixo: "Baixo", medio: "Médio", critico: "Crítico" } as const;
 const riskClass = {
   baixo: "bg-status-closed/15 text-status-closed border-status-closed/30",
-  medio: "bg-status-in-progress/15 text-status-in-progress border-status-in-progress/30",
+  medio: "bg-status-open/15 text-status-open border-status-open/30",
   critico: "bg-destructive/15 text-destructive border-destructive/30",
 };
 
@@ -204,7 +204,7 @@ export default function EquipmentPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <SummaryCard icon={Cog} label="Equipamentos" value={summary.total} />
           <SummaryCard icon={CheckCircle2} label="Operando" value={summary.ok} tone="text-status-closed" />
-          <SummaryCard icon={Wrench} label="Com ordem aberta" value={summary.open} tone="text-status-in-progress" />
+          <SummaryCard icon={Wrench} label="Com ordem aberta" value={summary.open} tone="text-status-open" />
           <SummaryCard icon={AlertTriangle} label="Críticos (Bad Actors)" value={summary.bad} tone="text-destructive" />
         </div>
 
@@ -233,7 +233,7 @@ export default function EquipmentPage() {
             {visible.map((r) => {
               const live = r.metrics.openNow;
               const status = !live ? "Operando" : live.is_machine_stopped ? "Parada" : "Em atendimento";
-              const dot = !live ? "bg-status-closed" : live.is_machine_stopped ? "bg-destructive animate-pulse" : "bg-status-in-progress";
+              const dot = !live ? "bg-status-closed" : live.is_machine_stopped ? "bg-destructive animate-pulse" : "bg-status-open";
               return (
                 <button
                   key={r.machine.id}
@@ -257,7 +257,7 @@ export default function EquipmentPage() {
                       <span>Saúde</span><span className="font-semibold text-foreground">{r.metrics.healthScore}%</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div className={cn("h-full", r.metrics.risk === "critico" ? "bg-destructive" : r.metrics.risk === "medio" ? "bg-status-in-progress" : "bg-status-closed")} style={{ width: `${r.metrics.healthScore}%` }} />
+                      <div className={cn("h-full", r.metrics.risk === "critico" ? "bg-destructive" : r.metrics.risk === "medio" ? "bg-status-open" : "bg-status-closed")} style={{ width: `${r.metrics.healthScore}%` }} />
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 mt-3 text-center text-xs">
@@ -306,7 +306,7 @@ export default function EquipmentPage() {
                       <PieChart>
                         <Pie data={[{ name: "Mecânica", v: sel.metrics.mechanical }, { name: "Elétrica", v: sel.metrics.electronic }]} dataKey="v" nameKey="name" innerRadius={45} outerRadius={70}>
                           <Cell fill="hsl(var(--primary))" />
-                          <Cell fill="hsl(var(--status-in-progress))" />
+                          <Cell fill="hsl(var(--status-open))" />
                         </Pie>
                         <Tooltip />
                         <Legend />
