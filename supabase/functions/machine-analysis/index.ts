@@ -49,16 +49,19 @@ Indicadores: ${Object.entries(d.kpis).map(([k, v]) => `${k}: ${v}`).join(" | ")}
 Histórico de ordens de serviço:
 ${hist}
 
-Responda EXATAMENTE neste formato Markdown, no máximo 12 linhas no total:
-**Diagnóstico:** <1 a 2 frases com números reais do período: paradas, tempo parado, sistema mais afetado>
-**Falha crítica:** <componente/modo de falha que mais derruba a disponibilidade, com nº de ocorrências>
-**Plano de ação:**
-1. <ação concreta e específica>
-2. <ação concreta e específica>
-3. <ação concreta e específica>
-**Risco:** <Baixo/Médio/Crítico> — <justificativa em 1 linha>
+Objetivo: transformar o histórico de corretivas em ações PREVENTIVAS e de MELHORIA que evitem a reincidência das falhas.
 
-Regras: sem introdução, sem conclusão, sem teoria, sem recomendações genéricas (ex.: "treinar a equipe"). Cada item em 1 linha. Não invente dados fora do histórico. Se não houver falhas no período, diga isso em 1 linha e dê o risco.`;
+Responda EXATAMENTE neste formato Markdown, no máximo 12 linhas no total:
+**Padrão recorrente:** <1 linha: componente/sistema que mais falha, nº de ocorrências e causa provável>
+**Ações preventivas (plano):**
+1. <inspeção/troca/lubrificação/ajuste específico + frequência sugerida>
+2. <inspeção/troca/lubrificação/ajuste específico + frequência sugerida>
+3. <opcional, mesma regra>
+**Ações de melhoria / engenharia:**
+1. <modificação física, proteção, troca de especificação ou processo que elimine a causa raiz>
+2. <opcional, mesma regra>
+
+Regras: sem introdução, sem conclusão, sem teoria, sem ações corretivas imediatas, sem recomendações genéricas (ex.: "treinar a equipe", "fazer manutenção preventiva"). Cada item em 1 linha, citando o componente. Baseie-se apenas no histórico; não invente dados. Se não houver falhas no período, diga isso em 1 linha e sugira no máximo 1 preventiva.`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
