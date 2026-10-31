@@ -32,7 +32,7 @@ serve(async (req) => {
             .join("\n")
         : "Nenhum registro anterior disponível.";
 
-    const systemPrompt = `You are an expert industrial maintenance assistant in an ammunition factory. Always respond in Brazilian Portuguese.`;
+    const systemPrompt = `Você é um técnico sênior de manutenção industrial numa fábrica de munições. Responda em português do Brasil, de forma extremamente curta e objetiva. Sem saudações, sem introdução, sem conclusão, sem teoria.`;
 
     const userPrompt = `- Máquina atual: ${machineName}
 - Categoria atual: ${maintenanceType === "electronic" ? "Elétrico" : "Mecânico"}
@@ -41,7 +41,12 @@ serve(async (req) => {
 Histórico de manutenção desta máquina específica:
 ${historyText}
 
-Tarefa: Com base no seu conhecimento geral de manutenção industrial E no histórico específico desta máquina fornecido acima, sugira 3 possíveis causas e um primeiro passo recomendado para verificação. Se os sintomas do problema atual forem muito semelhantes a um problema anterior no histórico, você DEVE destacar essa solução anterior como a recomendação principal.`;
+Responda EXATAMENTE neste formato Markdown, no máximo 6 linhas, cada item com no máximo 1 linha:
+**Causa mais provável:** <causa>. <se houver falha parecida no histórico: "Já ocorreu — solução anterior: ...">
+**Outras hipóteses:**
+- <hipótese 1>
+- <hipótese 2>
+**Ação imediata:** <1 a 2 verificações práticas, o que medir/testar primeiro>`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
