@@ -8,6 +8,7 @@ import {
   ClipboardList,
   BarChart3,
   Settings,
+  Cog,
   LogOut,
   User,
   Menu,
@@ -34,6 +35,12 @@ const navItems: NavItem[] = [
     label: "Ordens de Serviço",
     href: "/dashboard/orders",
     icon: ClipboardList,
+    roles: ["manutencao", "gestor"],
+  },
+  {
+    label: "Equipamentos",
+    href: "/dashboard/equipment",
+    icon: Cog,
     roles: ["manutencao", "gestor"],
   },
   {
