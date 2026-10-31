@@ -41,7 +41,7 @@ const navItems: NavItem[] = [
     label: "Equipamentos",
     href: "/dashboard/equipment",
     icon: Cog,
-    roles: ["manutencao", "gestor"],
+    roles: ["gestor"],
   },
   {
     label: "Dashboard",
