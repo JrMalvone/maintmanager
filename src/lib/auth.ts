@@ -6,6 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 export type AppRole = "operador" | "manutencao" | "gestor";
 
 const SESSION_STORAGE_KEY = "cmms_session";
+// Only a login performed in this window may restore the backend session.
+// Unlike persistent auth tokens, this marker disappears when the window closes.
+const WINDOW_LOGIN_KEY = "cmms_window_login_v1";
 
 interface SessionState {
   role: AppRole;
@@ -62,6 +65,7 @@ export async function authenticate(user: string, password: string): Promise<{
       redirectTo: data.redirectTo,
     };
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionState));
+    sessionStorage.setItem(WINDOW_LOGIN_KEY, "authenticated");
 
     return {
       success: true,
@@ -77,9 +81,18 @@ export async function authenticate(user: string, password: string): Promise<{
 // Validate active backend auth session and fetch role from user_roles
 export async function validateSession(): Promise<AuthState> {
   try {
+    if (sessionStorage.getItem(WINDOW_LOGIN_KEY) !== "authenticated") {
+      // Clear tokens restored from a previous launch without ending sessions
+      // on other devices using the same shared account.
+      await supabase.auth.signOut({ scope: "local" });
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return { isAuthenticated: false, role: null, user: null };
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      sessionStorage.removeItem(WINDOW_LOGIN_KEY);
       return { isAuthenticated: false, role: null, user: null };
     }
 
@@ -124,6 +137,9 @@ export async function validateSession(): Promise<AuthState> {
 // Get cached session state (for UI rendering while validation happens)
 export function getAuthState(): AuthState {
   try {
+    if (sessionStorage.getItem(WINDOW_LOGIN_KEY) !== "authenticated") {
+      return { isAuthenticated: false, role: null, user: null };
+    }
     const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (stored) {
       const session: SessionState = JSON.parse(stored);
@@ -140,8 +156,10 @@ export function getAuthState(): AuthState {
 }
 
 export async function logout(): Promise<void> {
+  sessionStorage.removeItem(WINDOW_LOGIN_KEY);
+  sessionStorage.removeItem(SESSION_STORAGE_KEY);
   try {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
   } catch (e) {
     console.error('Logout error:', e);
   }

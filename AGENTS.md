@@ -1,5 +1,7 @@
 # Architecture decisions
 
+- Gate backend-session restoration with a window-scoped login marker in `src/lib/auth.ts`, clearing restored tokens with local sign-out on a fresh window; this requires login after relaunch without editing the generated client or logging out other devices.
+
 - Paginate full service-order and work-log reads with `fetchAllRows` and stable ID tie-breakers; query active orders separately from closed history so the Data API row cap cannot hide new orders or truncate analytics.
 
 - Build the hosted web app with a root-relative Vite base (`/`) so direct visits to nested routes such as `/dashboard/tv` resolve assets from the site root; the desktop shell loads the hosted URL.
