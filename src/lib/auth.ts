@@ -8,7 +8,6 @@ export type AppRole = "operador" | "manutencao" | "gestor";
 const SESSION_STORAGE_KEY = "cmms_session";
 
 interface SessionState {
-  sessionToken: string;
   role: AppRole;
   user: string;
   redirectTo: string;
@@ -19,6 +18,12 @@ interface AuthState {
   role: AppRole | null;
   user: string | null;
 }
+
+const DB_ROLE_TO_APP_ROLE: Record<string, { role: AppRole; displayName: string; redirectTo: string }> = {
+  operator: { role: "operador", displayName: "Produção", redirectTo: "/dashboard/new-order" },
+  technician: { role: "manutencao", displayName: "Manutenção", redirectTo: "/dashboard/orders" },
+  manager: { role: "gestor", displayName: "Gestor", redirectTo: "/dashboard/analytics" },
+};
 
 // Call edge function for login
 export async function authenticate(user: string, password: string): Promise<{ 
@@ -37,13 +42,21 @@ export async function authenticate(user: string, password: string): Promise<{
       return { success: false, error: "Erro de conexão. Tente novamente." };
     }
 
-    if (!data.success) {
-      return { success: false, error: data.error || "Usuário ou senha incorretos" };
+    if (!data?.success || !data?.session?.access_token || !data?.session?.refresh_token) {
+      return { success: false, error: data?.error || "Usuário ou senha incorretos" };
     }
 
-    // Store session token (NOT role/auth state - that comes from server validation)
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    });
+
+    if (sessionError) {
+      console.error('Failed to establish session:', sessionError);
+      return { success: false, error: "Erro ao iniciar sessão. Tente novamente." };
+    }
+
     const sessionState: SessionState = {
-      sessionToken: data.sessionToken,
       role: data.role,
       user: data.displayName,
       redirectTo: data.redirectTo,
@@ -61,30 +74,46 @@ export async function authenticate(user: string, password: string): Promise<{
   }
 }
 
-// Validate session with server
+// Validate active backend auth session and fetch role from user_roles
 export async function validateSession(): Promise<AuthState> {
   try {
-    const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (!stored) {
-      return { isAuthenticated: false, role: null, user: null };
-    }
-
-    const session: SessionState = JSON.parse(stored);
-    
-    const { data, error } = await supabase.functions.invoke('authenticate/validate', {
-      body: { sessionToken: session.sessionToken },
-    });
-
-    if (error || !data.valid) {
-      // Invalid session - clear local storage
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
       return { isAuthenticated: false, role: null, user: null };
     }
 
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) {
+      await supabase.auth.signOut();
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return { isAuthenticated: false, role: null, user: null };
+    }
+
+    const { data: roleRow, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+
+    const mapped = !roleError && roleRow?.role ? DB_ROLE_TO_APP_ROLE[roleRow.role] : undefined;
+    if (!mapped) {
+      await supabase.auth.signOut();
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return { isAuthenticated: false, role: null, user: null };
+    }
+
+    const sessionState: SessionState = {
+      role: mapped.role,
+      user: mapped.displayName,
+      redirectTo: mapped.redirectTo,
+    };
+    sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionState));
+
     return {
       isAuthenticated: true,
-      role: data.role,
-      user: data.user,
+      role: mapped.role,
+      user: mapped.displayName,
     };
   } catch (e) {
     console.error('Session validation error:', e);
@@ -112,13 +141,7 @@ export function getAuthState(): AuthState {
 
 export async function logout(): Promise<void> {
   try {
-    const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (stored) {
-      const session: SessionState = JSON.parse(stored);
-      await supabase.functions.invoke('authenticate/logout', {
-        body: { sessionToken: session.sessionToken },
-      });
-    }
+    await supabase.auth.signOut();
   } catch (e) {
     console.error('Logout error:', e);
   }

@@ -1,57 +1,129 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Pre-hashed passwords (bcrypt) - NEVER expose raw passwords
-// These are hashed versions of the credentials
-const HASHED_CREDENTIALS: Record<string, { hash: string; role: string; displayName: string; redirectTo: string }> = {
+interface SharedAccount {
+  role: "operador" | "manutencao" | "gestor";
+  dbRole: "operator" | "technician" | "manager";
+  authEmail: string;
+  displayName: string;
+  redirectTo: string;
+  password: string;
+}
+
+const SHARED_ACCOUNTS: Record<string, SharedAccount> = {
   "produção": {
-    // Password: "opera20990" - hashed with bcrypt
-    hash: "$2a$10$rqJx8Jq9K5WZ8N8V7Y6X5O0vPh9Gq3K1LmNhVcXsJtRp0WyAz2KfO",
     role: "operador",
+    dbRole: "operator",
+    authEmail: "producao@cmms.internal",
     displayName: "Produção",
     redirectTo: "/dashboard/new-order",
+    password: "opera20990",
   },
   "manutenção": {
-    // Password: "manut26273" - hashed with bcrypt
-    hash: "$2a$10$sKj8Lq0M6WZ9N9V8Y7X6O1wQi0Hr4L2MnOiWdYtKuSq1XzBb3LgPK",
     role: "manutencao",
+    dbRole: "technician",
+    authEmail: "manutencao@cmms.internal",
     displayName: "Manutenção",
     redirectTo: "/dashboard/orders",
+    password: "manut26273",
   },
   "gestor": {
-    // Password: "sup24496" - hashed with bcrypt
-    hash: "$2a$10$tLk9Mr1N7XZ0O0W9Z8Y7P2xRj1Is5M3NoPlXeZuLvTr2YaCc4MhQN",
     role: "gestor",
+    dbRole: "manager",
+    authEmail: "gestor@cmms.internal",
     displayName: "Gestor",
     redirectTo: "/dashboard/analytics",
+    password: "sup24496",
   },
 };
 
-// Generate a simple session token
-function generateSessionToken(): string {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 }
 
-// In-memory session store (for edge function, sessions persist during warm instances)
-// In production, you'd want to use a database or Redis for session storage
-const sessions = new Map<string, { role: string; user: string; displayName: string; redirectTo: string; createdAt: number }>();
+async function issueAuthSession(account: SharedAccount) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-// Clean up expired sessions (30 minute timeout)
-function cleanupSessions() {
-  const now = Date.now();
-  const timeout = 30 * 60 * 1000; // 30 minutes
-  for (const [token, session] of sessions.entries()) {
-    if (now - session.createdAt > timeout) {
-      sessions.delete(token);
-    }
+  if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+    throw new Error("Missing backend auth configuration");
   }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const supabaseAnon = createClient(supabaseUrl, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  let linkRes = await supabaseAdmin.auth.admin.generateLink({
+    type: "magiclink",
+    email: account.authEmail,
+  });
+
+  if (linkRes.error || !linkRes.data?.user) {
+    const createRes = await supabaseAdmin.auth.admin.createUser({
+      email: account.authEmail,
+      email_confirm: true,
+      user_metadata: {
+        display_name: account.displayName,
+        shared_account: true,
+      },
+    });
+
+    if (createRes.error && !createRes.error.message.toLowerCase().includes("already")) {
+      throw new Error(`Failed to provision account: ${createRes.error.message}`);
+    }
+
+    linkRes = await supabaseAdmin.auth.admin.generateLink({
+      type: "magiclink",
+      email: account.authEmail,
+    });
+  }
+
+  if (linkRes.error || !linkRes.data?.user || !linkRes.data.properties?.hashed_token) {
+    throw new Error(`Failed to create auth link: ${linkRes.error?.message ?? "unknown error"}`);
+  }
+
+  const userId = linkRes.data.user.id;
+
+  const { error: roleError } = await supabaseAdmin
+    .from("user_roles")
+    .upsert(
+      { user_id: userId, role: account.dbRole },
+      { onConflict: "user_id,role", ignoreDuplicates: true }
+    );
+
+  if (roleError) {
+    throw new Error(`Failed to ensure role: ${roleError.message}`);
+  }
+
+  const otpType = (linkRes.data.properties.verification_type === "signup"
+    ? "signup"
+    : "magiclink") as "signup" | "magiclink";
+
+  const { data: verified, error: verifyError } = await supabaseAnon.auth.verifyOtp({
+    token_hash: linkRes.data.properties.hashed_token,
+    type: otpType,
+  });
+
+  if (verifyError || !verified.session) {
+    throw new Error(`Failed to verify session: ${verifyError?.message ?? "missing session"}`);
+  }
+
+  return {
+    access_token: verified.session.access_token,
+    refresh_token: verified.session.refresh_token,
+  };
 }
 
 serve(async (req) => {
@@ -66,142 +138,80 @@ serve(async (req) => {
 
     if (req.method === 'POST' && action === 'login') {
       const { user, password } = await req.json();
-      
-      if (!user || !password) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Usuário e senha são obrigatórios" }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+
+      if (!user || !password || typeof user !== 'string' || typeof password !== 'string') {
+        return jsonResponse({ success: false, error: "Usuário e senha são obrigatórios" }, 400);
       }
 
-      const userKey = user.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const userKey = user.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       const accentMap: Record<string, string> = {
         "manutencao": "manutenção",
         "producao": "produção",
         "operador": "produção", // legado: usuário antigo continua funcionando
       };
       const normalizedKey = accentMap[userKey] ?? userKey;
-      const credentials = HASHED_CREDENTIALS[normalizedKey];
+      const account = SHARED_ACCOUNTS[normalizedKey];
 
-      if (!credentials) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Usuário ou senha incorretos" }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (!account || account.password !== password) {
+        return jsonResponse({ success: false, error: "Usuário ou senha incorretos" }, 401);
       }
 
-      // Verify password against hash
-      // For this demo, we'll do a simple comparison since bcrypt requires actual hashing
-      // In production, use: const isValid = await bcrypt.compare(password, credentials.hash);
-      
-      // Simple password validation (replace with bcrypt in production)
-      const validPasswords: Record<string, string> = {
-        "produção": "opera20990",
-        "manutenção": "manut26273",
-        "gestor": "sup24496",
-      };
-      
-      const isValid = validPasswords[normalizedKey] === password;
+      const session = await issueAuthSession(account);
 
-      if (!isValid) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Usuário ou senha incorretos" }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Clean up old sessions
-      cleanupSessions();
-
-      // Generate session token
-      const sessionToken = generateSessionToken();
-      sessions.set(sessionToken, {
-        role: credentials.role,
-        user: normalizedKey,
-        displayName: credentials.displayName,
-        redirectTo: credentials.redirectTo,
-        createdAt: Date.now(),
+      return jsonResponse({
+        success: true,
+        session,
+        role: account.role,
+        displayName: account.displayName,
+        redirectTo: account.redirectTo,
       });
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          sessionToken,
-          role: credentials.role,
-          displayName: credentials.displayName,
-          redirectTo: credentials.redirectTo,
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
     if (req.method === 'POST' && action === 'validate') {
-      const { sessionToken } = await req.json();
-      
-      if (!sessionToken) {
-        return new Response(
-          JSON.stringify({ valid: false }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      const authHeader = req.headers.get("Authorization");
+      const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      if (!token) return jsonResponse({ valid: false });
 
-      const session = sessions.get(sessionToken);
-      
-      if (!session) {
-        return new Response(
-          JSON.stringify({ valid: false }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceRoleKey) return jsonResponse({ valid: false });
 
-      // Check session expiry (30 minutes)
-      const now = Date.now();
-      const timeout = 30 * 60 * 1000;
-      if (now - session.createdAt > timeout) {
-        sessions.delete(sessionToken);
-        return new Response(
-          JSON.stringify({ valid: false }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+      if (userError || !userData.user) return jsonResponse({ valid: false });
 
-      // Refresh session timestamp
-      session.createdAt = now;
+      const { data: roleRow } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
 
-      return new Response(
-        JSON.stringify({
-          valid: true,
-          role: session.role,
-          user: session.displayName,
-          redirectTo: session.redirectTo,
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      const dbRoleToApp: Record<string, { role: string; displayName: string; redirectTo: string }> = {
+        operator: { role: "operador", displayName: "Produção", redirectTo: "/dashboard/new-order" },
+        technician: { role: "manutencao", displayName: "Manutenção", redirectTo: "/dashboard/orders" },
+        manager: { role: "gestor", displayName: "Gestor", redirectTo: "/dashboard/analytics" },
+      };
+      const mapped = roleRow?.role ? dbRoleToApp[roleRow.role] : undefined;
+      if (!mapped) return jsonResponse({ valid: false });
+
+      return jsonResponse({
+        valid: true,
+        role: mapped.role,
+        user: mapped.displayName,
+        redirectTo: mapped.redirectTo,
+      });
     }
 
     if (req.method === 'POST' && action === 'logout') {
-      const { sessionToken } = await req.json();
-      
-      if (sessionToken) {
-        sessions.delete(sessionToken);
-      }
-
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonResponse({ success: true });
     }
 
-    return new Response(
-      JSON.stringify({ error: "Not found" }),
-      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: "Not found" }, 404);
 
   } catch (error) {
     console.error('Authentication error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: "Erro interno do servidor" }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ success: false, error: "Erro interno do servidor" }, 500);
   }
 });

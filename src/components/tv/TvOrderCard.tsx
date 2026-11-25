@@ -1,13 +1,32 @@
 import { AlertTriangle, Clock3, Timer, UserRound, Wrench, Zap } from "lucide-react";
 import { differenceInMinutes } from "date-fns";
-import type { ServiceOrder } from "@/hooks/useData";
-import type { Machine } from "@/hooks/useData";
 import { machineLabel } from "@/lib/machineLabel";
 import { cn } from "@/lib/utils";
 
+export interface TvOrder {
+  id: string;
+  machine_id: string | null;
+  machine_number: string | null;
+  status: "open" | "in_progress" | "closed";
+  is_machine_stopped: boolean;
+  maintenance_type: string | null;
+  problem_description: string;
+  created_at: string;
+  technician_name: string | null;
+}
+
+export interface TvMachine {
+  id: string;
+  code: string;
+  model: string | null;
+  manufacturer: string | null;
+  sector_id: string | null;
+  status: string;
+}
+
 interface TvOrderCardProps {
-  order: ServiceOrder;
-  machine?: Machine;
+  order: TvOrder;
+  machine?: TvMachine;
   team: string[];
   now: Date;
   unattended?: boolean;

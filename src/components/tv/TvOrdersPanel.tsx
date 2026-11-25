@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList, Factory, RefreshCw, Tv } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Machine, ServiceOrder } from "@/hooks/useData";
 import { SectorMultiSelect } from "@/components/technician/SectorMultiSelect";
-import { TvOrderCard } from "./TvOrderCard";
+import { TvOrderCard, type TvMachine, type TvOrder } from "./TvOrderCard";
 
 interface TvSector {
   id: string;
@@ -28,8 +27,8 @@ function initialSectorIds(): string[] {
 }
 
 export function TvOrdersPanel() {
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
-  const [machines, setMachines] = useState<Machine[]>([]);
+  const [orders, setOrders] = useState<TvOrder[]>([]);
+  const [machines, setMachines] = useState<TvMachine[]>([]);
   const [sectors, setSectors] = useState<TvSector[]>([]);
   const [activeLogs, setActiveLogs] = useState<ActiveWorkLog[]>([]);
   const [sectorIds, setSectorIds] = useState<string[]>(initialSectorIds);
@@ -40,39 +39,25 @@ export function TvOrdersPanel() {
   const filterOpen = useRef(false);
 
   const fetchData = useCallback(async () => {
-    const [ordersResult, machinesResult, sectorsResult, logsResult] = await Promise.all([
-      supabase
-        .from("service_orders")
-        .select("*")
-        .in("status", ["open", "in_progress"])
-        .order("created_at", { ascending: true }),
-      supabase.from("machines").select("*").order("code"),
-      supabase.from("sectors").select("id, name").order("name"),
-      supabase.from("work_logs").select("order_id, technician_name").is("ended_at", null),
-    ]);
-
-    if (ordersResult.data) setOrders(ordersResult.data as ServiceOrder[]);
-    if (machinesResult.data) setMachines(machinesResult.data);
-    if (sectorsResult.data) setSectors(sectorsResult.data);
-    if (logsResult.data) setActiveLogs(logsResult.data);
-    setLastUpdated(new Date());
+    const { data, error } = await supabase.functions.invoke("tv-panel-data");
+    if (!error && data) {
+      if (Array.isArray(data.orders)) setOrders(data.orders as TvOrder[]);
+      if (Array.isArray(data.machines)) setMachines(data.machines as TvMachine[]);
+      if (Array.isArray(data.sectors)) setSectors(data.sectors as TvSector[]);
+      if (Array.isArray(data.activeLogs)) setActiveLogs(data.activeLogs as ActiveWorkLog[]);
+      setLastUpdated(new Date());
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchData();
-    const poll = window.setInterval(fetchData, 60000);
+    const poll = window.setInterval(fetchData, 15000);
     const clock = window.setInterval(() => setNow(new Date()), 60000);
-    const channel = supabase
-      .channel("tv_active_orders")
-      .on("postgres_changes", { event: "*", schema: "public", table: "service_orders" }, fetchData)
-      .on("postgres_changes", { event: "*", schema: "public", table: "work_logs" }, fetchData)
-      .subscribe();
 
     return () => {
       window.clearInterval(poll);
       window.clearInterval(clock);
-      supabase.removeChannel(channel);
     };
   }, [fetchData]);
 

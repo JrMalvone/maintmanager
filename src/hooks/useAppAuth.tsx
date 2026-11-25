@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   AppRole, 
   authenticate as authLogin, 
@@ -49,6 +50,18 @@ export function AppAuthProvider({ children }: { children: ReactNode }) {
     };
     
     initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setIsAuthenticated(false);
+        setRole(null);
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
