@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Corrigir o limite de registros nas ordens e buscas relacionadas e verificar a listagem autenticada
+
 - [x] Adicionar centro de trabalho obrigatório por atuação no banco
 - [x] Calcular e registrar o centro ao iniciar o trabalho
 - [x] Incluir o centro nos apontamentos SAP e na conferência visual

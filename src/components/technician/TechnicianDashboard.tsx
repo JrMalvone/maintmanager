@@ -14,6 +14,8 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Search } from "lucide-react";
+import { fetchAllRows } from "@/lib/fetchAllRows";
+import { toast } from "sonner";
 
 export function TechnicianDashboard() {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
@@ -80,12 +82,23 @@ export function TechnicianDashboard() {
   }, []);
 
   async function fetchOrders() {
-    const { data } = await supabase
-      .from("service_orders")
-      .select("*")
-      .order("created_at", { ascending: true });
-
-    if (data) setOrders(data as ServiceOrder[]);
+    // Active orders have their own query, so closed history cannot crowd them out.
+    const [active, history] = await Promise.all([
+      fetchAllRows((from, to) => supabase.from("service_orders").select("*")
+        .in("status", ["open", "in_progress"])
+        .order("created_at", { ascending: true }).order("id").range(from, to)),
+      fetchAllRows((from, to) => supabase.from("service_orders").select("*")
+        .eq("status", "closed")
+        .order("finished_at", { ascending: false, nullsFirst: false })
+        .order("id").range(from, to)),
+    ]);
+    if (active.error || history.error) {
+      toast.error("Não foi possível atualizar todas as ordens. Tente novamente.");
+    }
+    setOrders((previous) => [
+      ...(active.data as ServiceOrder[] | null ?? previous.filter((o) => o.status !== "closed")),
+      ...(history.data as ServiceOrder[] | null ?? previous.filter((o) => o.status === "closed")),
+    ]);
     setLoading(false);
   }
 

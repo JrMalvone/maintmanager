@@ -20,6 +20,7 @@ import { Cog, Search, Loader2, Sparkles, FileText, Activity, AlertTriangle, Chec
 import { toast } from "sonner";
 import { OrderDetailSheet } from "@/components/technician/OrderDetailSheet";
 import { cn } from "@/lib/utils";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 type Sector = { id: string; name: string; shifts_count: number };
 type Row = { machine: Machine & { status?: string }; metrics: MachineMetrics; orders: ServiceOrder[] };
@@ -48,8 +49,8 @@ export default function EquipmentPage() {
 
   async function load() {
       const [o, l, m, s] = await Promise.all([
-        supabase.from("service_orders").select("*").order("created_at", { ascending: false }),
-        supabase.from("work_logs").select("*"),
+        fetchAllRows((from, to) => supabase.from("service_orders").select("*").order("created_at", { ascending: false }).order("id").range(from, to)),
+        fetchAllRows((from, to) => supabase.from("work_logs").select("*").order("id").range(from, to)),
         supabase.from("machines").select("*").order("code"),
         supabase.from("sectors").select("id, name, shifts_count").order("name"),
       ]);

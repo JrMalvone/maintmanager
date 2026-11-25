@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { useAppAuth } from "@/hooks/useAppAuth";
 import { exportDashboardExcel } from "@/lib/exportDashboardExcel";
 import { exportDashboardPdf } from "@/lib/exportDashboardPdf";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export function ManagerDashboard() {
   const { role } = useAppAuth();
@@ -54,8 +55,8 @@ export function ManagerDashboard() {
 
   async function fetchData() {
     const [ordersRes, workLogsRes, machinesRes, sectorsRes, staffRes] = await Promise.all([
-      supabase.from("service_orders").select("*").order("created_at", { ascending: false }),
-      supabase.from("work_logs").select("*").order("started_at", { ascending: false }),
+      fetchAllRows((from, to) => supabase.from("service_orders").select("*").order("created_at", { ascending: false }).order("id").range(from, to)),
+      fetchAllRows((from, to) => supabase.from("work_logs").select("*").order("started_at", { ascending: false }).order("id").range(from, to)),
       supabase.from("machines").select("*"),
       supabase.from("sectors").select("id, name, shifts_count"),
       supabase.from("maintenance_staff").select("registration_number, preferred_sector_id"),

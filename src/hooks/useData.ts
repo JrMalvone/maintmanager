@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 interface Sector {
   id: string;
@@ -102,16 +103,18 @@ export function useServiceOrders(status?: "open" | "in_progress" | "closed") {
 
   useEffect(() => {
     async function fetchOrders() {
-      let query = supabase
+      const { data } = await fetchAllRows((from, to) => {
+        let query = supabase
         .from("service_orders")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }).order("id");
 
       if (status) {
         query = query.eq("status", status);
       }
 
-      const { data } = await query;
+        return query.range(from, to);
+      });
       if (data) setOrders(data as ServiceOrder[]);
       setLoading(false);
     }

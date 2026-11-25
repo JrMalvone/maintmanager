@@ -1,5 +1,7 @@
 # Architecture decisions
 
+- Paginate full service-order and work-log reads with `fetchAllRows` and stable ID tie-breakers; query active orders separately from closed history so the Data API row cap cannot hide new orders or truncate analytics.
+
 - Build the hosted web app with a root-relative Vite base (`/`) so direct visits to nested routes such as `/dashboard/tv` resolve assets from the site root; the desktop shell loads the hosted URL.
 - Keep `/dashboard/tv` publicly accessible and read-only so dedicated television devices can open the live panel without authentication.
 - Keep the Raspberry Pi TV shell separate from the Windows shell; it loads only `/dashboard/tv` in kiosk mode and retries after network failures.

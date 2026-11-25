@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export interface WorkLog {
   id: string;
@@ -91,10 +92,10 @@ export function useAllWorkLogs() {
     };
 
     async function fetchAllWorkLogs() {
-      const { data } = await supabase
+      const { data } = await fetchAllRows((from, to) => supabase
         .from("work_logs")
         .select("*")
-        .order("started_at", { ascending: false });
+        .order("started_at", { ascending: false }).order("id").range(from, to));
 
       if (data) setWorkLogs(data as WorkLog[]);
       setLoading(false);
