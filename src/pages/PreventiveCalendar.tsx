@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, parseISO } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { addMonths, differenceInCalendarDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -14,12 +14,31 @@ import { SectorMultiSelect } from "@/components/technician/SectorMultiSelect";
 import { PreventiveOrderDetailSheet } from "@/components/preventive/PreventiveOrderDetailSheet";
 import { PreventivePlanEditor } from "@/components/preventive/PreventivePlanEditor";
 import { PERIODICITIES, Periodicity, projectPreventiveDates, dateKey, isInReleaseWindow } from "@/lib/preventiveSchedule";
-import { PreventiveOrder, PREVENTIVE_MAINTENANCE_LABELS } from "@/lib/preventiveOrders";
-import { ChevronLeft, ChevronRight, CalendarDays, ClipboardList, Loader2, Search } from "lucide-react";
+import { PreventiveOrder, PREVENTIVE_MAINTENANCE_LABELS, formatEstimatedMinutes, getPreventiveOrderDelayInfo } from "@/lib/preventiveOrders";
+import { AlertTriangle, ChevronLeft, ChevronRight, CalendarDays, ClipboardList, Loader2, Search, TimerOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type CalendarEvent = {date:string;title:string;plan?:PreventivePlan;order?:PreventiveOrder;status:string;machine:string};
-const statusStyle:Record<string,string> = {Projetada:"text-muted-foreground border-border",Programada:"text-primary border-primary/40",Atrasada:"text-destructive border-destructive/40","Em andamento":"text-status-progress border-status-progress/40",Concluída:"text-status-closed border-status-closed/40",Cancelada:"text-muted-foreground border-border"};
+type CalendarEvent = {
+  date: string;
+  title: string;
+  plan?: PreventivePlan;
+  order?: PreventiveOrder;
+  status: string;
+  machine: string;
+  isDateOverdue: boolean;
+  daysOverdue: number;
+  isTimeExceeded: boolean;
+  overtimeMinutes: number;
+};
+const statusStyle: Record<string, string> = {
+  Projetada: "text-muted-foreground border-border",
+  Programada: "text-primary border-primary/50",
+  "Em andamento": "text-status-progress border-status-progress/50",
+  Concluída: "text-status-closed border-status-closed/50",
+  "Data vencida": "text-destructive border-destructive bg-destructive/10",
+  "Tempo excedido": "text-status-open border-status-open bg-status-open/10",
+  Cancelada: "text-muted-foreground border-border",
+};
 
 function CalendarContent() {
   const {plans,loading,refetch:refetchPlans} = usePreventivePlans();
@@ -32,7 +51,12 @@ function CalendarContent() {
   const [selectedOrderId,setSelectedOrderId] = useState<string|null>(null);
   const [selectedPlan,setSelectedPlan] = useState<PreventivePlan|null>(null);
   const [showPaused,setShowPaused] = useState(false);
-  const today = dateKey(new Date());
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const today = dateKey(now);
   const start = view==="year"?`${date.getFullYear()}-01-01`:dateKey(startOfWeek(startOfMonth(date),{weekStartsOn:0}));
   const end = view==="year"?`${date.getFullYear()}-12-31`:dateKey(endOfWeek(endOfMonth(date),{weekStartsOn:0}));
   const filteredPlans = plans.filter(p=> (!sectorIds.length || (p.sector_id && sectorIds.includes(p.sector_id))) && (area==="all" || p.maintenance_type===area) && `${p.title} ${p.machine_number??""} ${p.description}`.toLowerCase().includes(search.toLowerCase()));
@@ -42,17 +66,53 @@ function CalendarContent() {
     for (const order of orders.filter(matches)) {
       const scheduled=order.scheduled_date;
       if (!scheduled || scheduled<start || scheduled>end) continue;
-      const status=order.status==="completed"?"Concluída":order.status==="canceled"?"Cancelada":order.status==="in_progress"?"Em andamento":scheduled<today?"Atrasada":isInReleaseWindow(scheduled,today)?"Programada":"Projetada";
-      result.push({date:scheduled,title:order.title,order,status,machine:order.machine_number??"Geral do setor"});
+      const delay = getPreventiveOrderDelayInfo(order, now);
+      const status =
+        order.status === "completed"
+          ? "Concluída"
+          : order.status === "canceled"
+            ? "Cancelada"
+            : order.status === "in_progress"
+              ? "Em andamento"
+              : delay.isDateOverdue
+                ? "Data vencida"
+                : isInReleaseWindow(scheduled, today)
+                  ? "Programada"
+                  : "Projetada";
+      result.push({
+        date: scheduled,
+        title: order.title,
+        order,
+        status,
+        machine: order.machine_number ?? "Geral do setor",
+        isDateOverdue: delay.isDateOverdue,
+        daysOverdue: delay.daysOverdue,
+        isTimeExceeded: delay.isTimeExceeded,
+        overtimeMinutes: delay.overtimeMinutes,
+      });
     }
     for (const plan of filteredPlans.filter(p=>p.active)) {
       for (const scheduled of projectPreventiveDates(plan.next_due_date,plan.periodicity as Periodicity,start,end)) {
         if (result.some(e=>e.order?.plan_id===plan.id && e.date===scheduled)) continue;
-        result.push({date:scheduled,title:plan.title,plan,status:scheduled<today?"Atrasada":"Projetada",machine:plan.machine_number??"Geral do setor"});
+        const isDateOverdue = scheduled < today;
+        const daysOverdue = isDateOverdue ? Math.max(1, differenceInCalendarDays(parseISO(today), parseISO(scheduled))) : 0;
+        result.push({
+          date: scheduled,
+          title: plan.title,
+          plan,
+          status: isDateOverdue ? "Data vencida" : "Projetada",
+          machine: plan.machine_number ?? "Geral do setor",
+          isDateOverdue,
+          daysOverdue,
+          isTimeExceeded: false,
+          overtimeMinutes: 0,
+        });
       }
     }
     return result.sort((a,b)=>a.date.localeCompare(b.date)||a.title.localeCompare(b.title));
-  },[orders,plans,sectorIds,area,search,start,end,today]);
+  },[orders,plans,sectorIds,area,search,start,end,today,now]);
+  const overdueDateCount = useMemo(() => events.filter((e) => e.isDateOverdue).length, [events]);
+  const exceededTimeCount = useMemo(() => events.filter((e) => e.isTimeExceeded).length, [events]);
   const refresh=()=>{refetchPlans();refetchOrders();};
   function openEvent(event:CalendarEvent) {
     if(event.order) setSelectedOrderId(event.order.id);
@@ -61,7 +121,62 @@ function CalendarContent() {
       if(activeOrder)setSelectedOrderId(activeOrder.id);else setSelectedPlan(event.plan);
     }
   }
-  const renderEvent=(event:CalendarEvent,compact=false)=><Button key={`${event.order?.id??event.plan?.id}-${event.date}`} variant="ghost" onClick={()=>openEvent(event)} title={`${event.title} · ${event.machine} · ${event.status}`} className={cn("h-auto w-full min-w-0 items-start justify-start border-l-2 rounded-sm px-2 py-1.5 text-left whitespace-normal",statusStyle[event.status])}><span className="min-w-0"><span className={cn("block font-semibold break-words",compact?"text-[11px] line-clamp-2":"text-sm")}>{event.title}</span><span className="block text-[10px] opacity-90">{event.machine} · {event.status}</span></span></Button>;
+  const renderEvent = (event: CalendarEvent, compact = false) => {
+    const cardTone = event.isDateOverdue
+      ? "border-destructive bg-destructive/15 text-foreground hover:bg-destructive/20"
+      : event.isTimeExceeded
+        ? "border-status-open bg-status-open/15 text-foreground hover:bg-status-open/20"
+        : statusStyle[event.status];
+    const tooltip = [
+      event.title,
+      event.machine,
+      event.status,
+      event.isDateOverdue ? `Data vencida há ${event.daysOverdue}d` : "",
+      event.isTimeExceeded ? `Tempo excedido (+${formatEstimatedMinutes(event.overtimeMinutes)})` : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    return (
+      <Button
+        key={`${event.order?.id ?? event.plan?.id}-${event.date}`}
+        variant="ghost"
+        onClick={() => openEvent(event)}
+        title={tooltip}
+        className={cn(
+          "h-auto w-full min-w-0 items-start justify-start border-l-2 rounded-sm px-2 py-1.5 text-left whitespace-normal",
+          cardTone
+        )}
+      >
+        <span className="min-w-0 w-full space-y-1">
+          <span className={cn("block font-semibold break-words", compact ? "text-[11px] line-clamp-2" : "text-sm")}>
+            {event.title}
+          </span>
+          <span className="block text-[10px] opacity-90">
+            {event.machine} · {event.status}
+          </span>
+          {(event.isDateOverdue || event.isTimeExceeded) && (
+            <span className="flex flex-wrap gap-1 pt-0.5">
+              {event.isDateOverdue && (
+                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold bg-destructive/20 text-destructive border border-destructive/50">
+                  <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                  {compact ? `Data -${event.daysOverdue}d` : `Data vencida (${event.daysOverdue}d)`}
+                </span>
+              )}
+              {event.isTimeExceeded && (
+                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold bg-status-open/20 text-status-open border border-status-open/50">
+                  <TimerOff className="h-2.5 w-2.5 shrink-0" />
+                  {compact
+                    ? `+${formatEstimatedMinutes(event.overtimeMinutes)}`
+                    : `Tempo excedido (+${formatEstimatedMinutes(event.overtimeMinutes)})`}
+                </span>
+              )}
+            </span>
+          )}
+        </span>
+      </Button>
+    );
+  };
   if(loading||loadingOrders) return <div className="flex justify-center p-16"><Loader2 className="animate-spin text-primary"/></div>;
   return <div className="space-y-5">
     <header className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold flex items-center gap-2"><CalendarDays className="text-primary h-6 w-6"/>Calendário de Preventivas</h1><Button asChild variant="outline"><Link to="/dashboard/preventive"><ClipboardList className="mr-2 h-4 w-4"/>Ordens</Link></Button></header>
@@ -71,7 +186,19 @@ function CalendarContent() {
       <div className="relative flex-1 min-w-48"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input aria-label="Buscar preventiva" placeholder="Atividade ou equipamento" value={search} onChange={e=>setSearch(e.target.value)} className="pl-9"/></div>
     </div>
     <div className="flex flex-wrap gap-3 items-center justify-between"><div className="flex items-center gap-2"><Button size="icon" variant="outline" aria-label="Período anterior" onClick={()=>setDate(addMonths(date,view==="year"?-12:-1))}><ChevronLeft className="h-4 w-4"/></Button><h2 className="min-w-40 text-center font-semibold capitalize">{view==="year"?format(date,"yyyy"):format(date,"MMMM yyyy",{locale:ptBR})}</h2><Button size="icon" variant="outline" aria-label="Próximo período" onClick={()=>setDate(addMonths(date,view==="year"?12:1))}><ChevronRight className="h-4 w-4"/></Button><Button variant="ghost" onClick={()=>setDate(startOfMonth(new Date()))}>Hoje</Button></div><Tabs value={view} onValueChange={setView}><TabsList><TabsTrigger value="month">Mês</TabsTrigger><TabsTrigger value="year">Ano</TabsTrigger></TabsList></Tabs></div>
-    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">{Object.entries(statusStyle).filter(([s])=>s!=="Cancelada").map(([s,c])=><span key={s} className={cn("border-l-2 pl-2",c)}>{s}</span>)}</div>
+    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs items-center">
+      {Object.entries(statusStyle)
+        .filter(([s]) => s !== "Cancelada")
+        .map(([s, c]) => {
+          const badgeCount = s === "Data vencida" ? overdueDateCount : s === "Tempo excedido" ? exceededTimeCount : 0;
+          return (
+            <span key={s} className={cn("border-l-2 px-2 py-0.5 rounded-r-sm font-medium", c)}>
+              {s}
+              {badgeCount > 0 && <strong className="ml-1">({badgeCount})</strong>}
+            </span>
+          );
+        })}
+    </div>
     {view==="month"?<>
       <div className="hidden md:block border border-border rounded-md overflow-hidden">
         <div className="grid grid-cols-7 bg-muted">{["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(d=><div key={d} className="text-xs text-center py-2 font-semibold">{d}</div>)}</div>

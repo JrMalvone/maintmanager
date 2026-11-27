@@ -13,6 +13,7 @@ import {
   PreventiveOrder,
   PreventivePriority,
   formatEstimatedMinutes,
+  getPreventiveOrderDelayInfo,
   parseHoursMinutesToMinutes,
 } from "@/lib/preventiveOrders";
 import { machineLabel } from "@/lib/machineLabel";
@@ -42,7 +43,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CalendarClock, CheckCircle2, Loader2, Package, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, Loader2, Package, Pencil, TimerOff, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PreventiveOrderDetailSheetProps {
   order: PreventiveOrder | null;
@@ -70,6 +72,14 @@ export function PreventiveOrderDetailSheet({
   const [planPriority, setPlanPriority] = useState<PreventivePriority>("medium");
   const [planning, setPlanning] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!open || order?.status !== "in_progress") return;
+    setNow(new Date());
+    const id = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, [open, order?.status, order?.id]);
 
   useEffect(() => {
     if (order) {
@@ -96,6 +106,13 @@ export function PreventiveOrderDetailSheet({
   const sector = sectors.find((s) => s.id === (order.sector_id || machine?.sector_id));
   const canEdit = role === "manutencao" || role === "gestor";
   const canDelete = role === "gestor";
+  const delay = getPreventiveOrderDelayInfo(order, now);
+  const durationText =
+    delay.durationMinutes === null
+      ? null
+      : delay.durationMinutes === 0
+        ? "< 1min"
+        : formatEstimatedMinutes(delay.durationMinutes);
 
   async function handleQuickPlan(e: React.FormEvent) {
     e.preventDefault();
@@ -241,6 +258,29 @@ export function PreventiveOrderDetailSheet({
             )}
 
             {/* Core details */}
+            {(delay.isDateOverdue || delay.isTimeExceeded) && (
+              <div
+                className={cn(
+                  "rounded-lg border p-3 space-y-1.5 text-xs",
+                  delay.isDateOverdue || order.status === "in_progress"
+                    ? "border-destructive/50 bg-destructive/10"
+                    : "border-status-open/50 bg-status-open/10"
+                )}
+              >
+                {delay.isDateOverdue && order.scheduled_date && (
+                  <p className="flex items-center gap-2 font-semibold text-destructive">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    Data planejada vencida há {delay.daysOverdue} dia(s) (prevista para {format(parseISO(order.scheduled_date), "dd/MM/yyyy")}).
+                  </p>
+                )}
+                {delay.isTimeExceeded && order.estimated_minutes && durationText && (
+                  <p className={cn("flex items-center gap-2 font-semibold", order.status === "in_progress" ? "text-destructive" : "text-status-open")}>
+                    <TimerOff className="w-4 h-4 shrink-0" />
+                    Tempo estipulado ultrapassado em +{formatEstimatedMinutes(delay.overtimeMinutes)} (previsto {formatEstimatedMinutes(order.estimated_minutes)} · {order.status === "completed" ? "real" : "decorrido"} {durationText} · {delay.percentOfEstimate}%).
+                  </p>
+                )}
+              </div>
+            )}
             {order.scheduled_date && <div className="border-y border-border py-3 text-sm flex flex-wrap justify-between gap-2"><span>Programada: <strong>{format(parseISO(order.scheduled_date), "dd/MM/yyyy")}</strong></span><span>{order.periodicity ? PERIODICITIES[order.periodicity].label : "Única"}</span></div>}
             <div className="industrial-card p-4 space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-3">
@@ -269,6 +309,43 @@ export function PreventiveOrderDetailSheet({
                   <span className="font-semibold">{order.opener_name} ({order.opener_registry})</span>
                 </div>
               </div>
+
+              {order.estimated_minutes && durationText && delay.percentOfEstimate !== null && (
+                <div className="pt-2 border-t border-border space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground font-medium">Aderência ao Tempo Estipulado</span>
+                    <span
+                      className={cn(
+                        "font-semibold",
+                        delay.isTimeExceeded
+                          ? order.status === "in_progress"
+                            ? "text-destructive"
+                            : "text-status-open"
+                          : order.status === "completed"
+                            ? "text-status-closed"
+                            : "text-status-progress"
+                      )}
+                    >
+                      {order.status === "completed" ? "Real" : "Decorrido"}: {durationText} / {formatEstimatedMinutes(order.estimated_minutes)} ({delay.percentOfEstimate}%)
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        delay.isTimeExceeded
+                          ? order.status === "in_progress"
+                            ? "bg-destructive"
+                            : "bg-status-open"
+                          : order.status === "completed"
+                            ? "bg-status-closed"
+                            : "bg-status-progress"
+                      )}
+                      style={{ width: `${Math.min(100, delay.percentOfEstimate)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="pt-2 border-t border-border">
                 <span className="text-xs text-muted-foreground block mb-1">Descrição da Atividade</span>

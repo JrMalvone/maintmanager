@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isInReleaseWindow } from "@/lib/preventiveSchedule";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   PreventiveOrderType,
   PreventivePriority,
   formatEstimatedMinutes,
+  getPreventiveOrderDelayInfo,
 } from "@/lib/preventiveOrders";
 import { machineLabel } from "@/lib/machineLabel";
 import { SectorMultiSelect } from "@/components/technician/SectorMultiSelect";
@@ -43,6 +44,12 @@ export function PreventiveDashboard() {
   const [typeFilter, setTypeFilter] = useState<"all" | PreventiveOrderType>("all");
   const [maintFilter, setMaintFilter] = useState<"all" | PreventiveMaintenanceType>("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | PreventivePriority>("all");
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const machineMap = useMemo(() => new Map(machines.map((m) => [m.id, m])), [machines]);
   const sectorMap = useMemo(() => new Map(sectors.map((s) => [s.id, s.name])), [sectors]);
@@ -100,6 +107,18 @@ export function PreventiveDashboard() {
     () => plannedOrders.reduce((acc, o) => acc + (o.estimated_minutes || 0), 0),
     [plannedOrders]
   );
+  const plannedOverdueCount = useMemo(
+    () => plannedOrders.filter((o) => getPreventiveOrderDelayInfo(o, now).isDateOverdue).length,
+    [plannedOrders, now]
+  );
+  const inProgressExceededCount = useMemo(
+    () => inProgressOrders.filter((o) => getPreventiveOrderDelayInfo(o, now).isTimeExceeded).length,
+    [inProgressOrders, now]
+  );
+  const completedExceededCount = useMemo(
+    () => completedOrders.filter((o) => getPreventiveOrderDelayInfo(o, now).isTimeExceeded).length,
+    [completedOrders, now]
+  );
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) ?? null;
 
@@ -153,6 +172,7 @@ export function PreventiveDashboard() {
                     order={o}
                     machineLabelText={mText}
                     sectorNameText={sectorMap.get(getSectorId(o) || "")}
+                    now={now}
                     onClick={() => openOrder(o)}
                   />
                 );
@@ -195,14 +215,29 @@ export function PreventiveDashboard() {
               </span>
             )}
           </p>
+          {plannedOverdueCount > 0 && (
+            <p className="text-xs font-semibold text-destructive mt-1">
+              {plannedOverdueCount} com data vencida
+            </p>
+          )}
         </div>
         <div className="industrial-card p-3.5">
           <p className="text-xs uppercase text-muted-foreground font-semibold">Em Andamento</p>
           <p className="text-2xl font-bold text-status-progress mt-1">{inProgressOrders.length}</p>
+          {inProgressExceededCount > 0 && (
+            <p className="text-xs font-semibold text-destructive mt-1">
+              {inProgressExceededCount} com tempo excedido
+            </p>
+          )}
         </div>
         <div className="industrial-card p-3.5">
           <p className="text-xs uppercase text-muted-foreground font-semibold">Concluídas</p>
-          <p className="text-2xl font-bold text-emerald-400 mt-1">{completedOrders.length}</p>
+          <p className="text-2xl font-bold text-status-closed mt-1">{completedOrders.length}</p>
+          {completedExceededCount > 0 && (
+            <p className="text-xs font-semibold text-status-open mt-1">
+              {completedExceededCount} acima do previsto
+            </p>
+          )}
         </div>
       </div>
 

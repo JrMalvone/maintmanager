@@ -1,3 +1,6 @@
+import { differenceInCalendarDays, parseISO } from "date-fns";
+import { dateKey, type Periodicity } from "./preventiveSchedule";
+
 export type PreventiveOrderType = "preventive" | "backlog";
 export type PreventiveOrderStatus =
   | "pending_planning"
@@ -16,7 +19,7 @@ export interface PreventiveOrder {
   id: string;
   plan_id?: string | null;
   scheduled_date?: string | null;
-  periodicity?: import("./preventiveSchedule").Periodicity | null;
+  periodicity?: Periodicity | null;
   order_type: PreventiveOrderType;
   status: PreventiveOrderStatus;
   priority: PreventivePriority;
@@ -184,4 +187,65 @@ export function resolvePreventiveWorkCenter(
   const suffix = WORK_CENTER_SUFFIX[maintenanceType];
   const abbrev = sector?.name?.trim().slice(0, 3).toUpperCase();
   return abbrev ? `${abbrev}-${suffix}` : suffix;
+}
+
+export interface PreventiveDelayInfo {
+  isDateOverdue: boolean;
+  daysOverdue: number;
+  durationMinutes: number | null;
+  isTimeExceeded: boolean;
+  overtimeMinutes: number;
+  percentOfEstimate: number | null;
+}
+
+export function getPreventiveOrderDelayInfo(
+  order: Pick<PreventiveOrder, "status" | "scheduled_date" | "estimated_minutes" | "started_at" | "finished_at">,
+  now: Date = new Date()
+): PreventiveDelayInfo {
+  if (order.status === "canceled") {
+    return {
+      isDateOverdue: false,
+      daysOverdue: 0,
+      durationMinutes: null,
+      isTimeExceeded: false,
+      overtimeMinutes: 0,
+      percentOfEstimate: null,
+    };
+  }
+
+  const todayKey = dateKey(now);
+  const isDateOverdue = Boolean(
+    order.scheduled_date && order.status !== "completed" && order.scheduled_date < todayKey
+  );
+  const daysOverdue =
+    isDateOverdue && order.scheduled_date
+      ? Math.max(1, differenceInCalendarDays(parseISO(todayKey), parseISO(order.scheduled_date)))
+      : 0;
+
+  let durationMinutes: number | null = null;
+  if (order.status === "completed" && order.started_at && order.finished_at) {
+    durationMinutes = Math.max(
+      1,
+      Math.round((new Date(order.finished_at).getTime() - new Date(order.started_at).getTime()) / 60000)
+    );
+  } else if (order.status === "in_progress" && order.started_at) {
+    durationMinutes = Math.max(
+      0,
+      Math.floor((now.getTime() - new Date(order.started_at).getTime()) / 60000)
+    );
+  }
+
+  const est = order.estimated_minutes && order.estimated_minutes > 0 ? order.estimated_minutes : null;
+  const isTimeExceeded = Boolean(est !== null && durationMinutes !== null && durationMinutes > est);
+  const overtimeMinutes = isTimeExceeded && est !== null && durationMinutes !== null ? durationMinutes - est : 0;
+  const percentOfEstimate = est !== null && durationMinutes !== null ? Math.round((durationMinutes / est) * 100) : null;
+
+  return {
+    isDateOverdue,
+    daysOverdue,
+    durationMinutes,
+    isTimeExceeded,
+    overtimeMinutes,
+    percentOfEstimate,
+  };
 }

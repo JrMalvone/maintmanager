@@ -6,13 +6,14 @@ import {
   PreventiveOrder,
   PreventivePriority,
   formatEstimatedMinutes,
+  getPreventiveOrderDelayInfo,
 } from "@/lib/preventiveOrders";
-import { formatElapsedTime } from "@/lib/dateUtils";
 import { PERIODICITIES } from "@/lib/preventiveSchedule";
 import { format, parseISO } from "date-fns";
 import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
 import { cn } from "@/lib/utils";
 import {
+  AlertTriangle,
   CalendarCheck,
   Clock,
   Hammer,
@@ -20,6 +21,7 @@ import {
   Settings,
   ShoppingCart,
   Timer,
+  TimerOff,
   User,
   Wrench,
   Zap,
@@ -29,6 +31,7 @@ interface PreventiveOrderCardProps {
   order: PreventiveOrder;
   machineLabelText: string;
   sectorNameText?: string;
+  now?: Date;
   onClick: () => void;
 }
 
@@ -57,20 +60,31 @@ export function PreventiveOrderCard({
   order,
   machineLabelText,
   sectorNameText,
+  now,
   onClick,
 }: PreventiveOrderCardProps) {
   const MaintIcon = MAINT_ICON[order.maintenance_type];
   const isPreventive = order.order_type === "preventive";
-
-  const actualMinutes =
-    order.started_at && order.finished_at
-      ? Math.max(1, Math.round((new Date(order.finished_at).getTime() - new Date(order.started_at).getTime()) / 60000))
-      : null;
+  const delay = getPreventiveOrderDelayInfo(order, now);
+  const durationLabel =
+    delay.durationMinutes === null
+      ? null
+      : delay.durationMinutes === 0
+        ? "< 1min"
+        : formatEstimatedMinutes(delay.durationMinutes);
+  const hasAlert = delay.isDateOverdue || delay.isTimeExceeded;
 
   return (
     <div
       onClick={onClick}
-      className="industrial-card p-4 cursor-pointer hover:border-primary/60 transition-all space-y-3"
+      className={cn(
+        "industrial-card p-4 cursor-pointer hover:border-primary/60 transition-all space-y-3",
+        delay.isDateOverdue || (delay.isTimeExceeded && order.status === "in_progress")
+          ? "border-l-4 border-l-destructive bg-destructive/5"
+          : delay.isTimeExceeded
+            ? "border-l-4 border-l-status-open bg-status-open/5"
+            : ""
+      )}
     >
       {/* Top badges */}
       <div className="flex flex-wrap items-center justify-between gap-1.5">
@@ -107,32 +121,86 @@ export function PreventiveOrderCard({
       </div>
 
       <p className="text-sm text-muted-foreground line-clamp-2">{order.description}</p>
-      {order.scheduled_date && <p className="text-xs font-semibold text-primary">Programada: {format(parseISO(order.scheduled_date), "dd/MM/yyyy")} · {order.periodicity ? PERIODICITIES[order.periodicity].label : "Única"}</p>}
+      {order.scheduled_date && (
+        <p className={cn("text-xs font-semibold", delay.isDateOverdue ? "text-destructive" : "text-primary")}>
+          Programada: {format(parseISO(order.scheduled_date), "dd/MM/yyyy")} · {order.periodicity ? PERIODICITIES[order.periodicity].label : "Única"}
+        </p>
+      )}
+
+      {hasAlert && (
+        <div className="flex flex-wrap gap-1.5">
+          {delay.isDateOverdue && (
+            <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold bg-destructive/20 text-destructive border border-destructive/50">
+              <AlertTriangle className="w-3 h-3 shrink-0" />
+              Data vencida ({delay.daysOverdue}d)
+            </span>
+          )}
+          {delay.isTimeExceeded && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold border",
+                order.status === "in_progress"
+                  ? "bg-destructive/20 text-destructive border-destructive/50"
+                  : "bg-status-open/20 text-status-open border-status-open/50"
+              )}
+            >
+              <TimerOff className="w-3 h-3 shrink-0" />
+              Tempo excedido (+{formatEstimatedMinutes(delay.overtimeMinutes)})
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Estimated / Execution Time Row */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border text-xs">
-        <div className="flex items-center gap-1.5">
-          <Timer className="w-3.5 h-3.5 text-primary" />
-          {order.estimated_minutes ? (
-            <span className="font-semibold text-foreground">
-              Previsto: {formatEstimatedMinutes(order.estimated_minutes)}
+      <div className="space-y-1.5 pt-2 border-t border-border text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <Timer className="w-3.5 h-3.5 text-primary" />
+            {order.estimated_minutes ? (
+              <span className="font-semibold text-foreground">
+                Previsto: {formatEstimatedMinutes(order.estimated_minutes)}
+              </span>
+            ) : (
+              <span className="font-semibold text-status-open">Estipular tempo</span>
+            )}
+          </div>
+
+          {order.status === "in_progress" && durationLabel !== null && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 font-semibold",
+                delay.isTimeExceeded ? "text-destructive font-bold" : "text-status-progress"
+              )}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              {durationLabel}
+              {delay.percentOfEstimate !== null && ` (${delay.percentOfEstimate}%)`}
             </span>
-          ) : (
-            <span className="font-semibold text-amber-400">Estipular tempo</span>
+          )}
+
+          {order.status === "completed" && durationLabel !== null && (
+            <span
+              className={cn(
+                "font-semibold",
+                delay.isTimeExceeded ? "text-status-open font-bold" : "text-status-closed"
+              )}
+            >
+              Real: {durationLabel}
+              {delay.percentOfEstimate !== null && delay.isTimeExceeded && ` (${delay.percentOfEstimate}%)`}
+            </span>
           )}
         </div>
 
-        {order.status === "in_progress" && order.started_at && (
-          <span className="inline-flex items-center gap-1 text-status-progress font-semibold">
-            <Clock className="w-3.5 h-3.5" />
-            {formatElapsedTime(order.started_at)}
-          </span>
-        )}
-
-        {order.status === "completed" && actualMinutes !== null && (
-          <span className="text-emerald-400 font-semibold">
-            Real: {formatEstimatedMinutes(actualMinutes)}
-          </span>
+        {order.status === "in_progress" && delay.percentOfEstimate !== null && (
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                delay.isTimeExceeded ? "bg-destructive" : "bg-status-progress"
+              )}
+              style={{ width: `${Math.min(100, delay.percentOfEstimate)}%` }}
+            />
+          </div>
         )}
       </div>
 

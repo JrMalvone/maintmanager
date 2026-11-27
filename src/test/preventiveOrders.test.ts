@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   PREVENTIVE_MAINTENANCE_LABELS,
   formatEstimatedMinutes,
+  getPreventiveOrderDelayInfo,
   parseHoursMinutesToMinutes,
   resolvePreventiveWorkCenter,
   resolveSapSyncStatus,
@@ -55,5 +56,52 @@ describe("preventive & backlog order rules", () => {
     expect(resolvePreventiveWorkCenter("mechanical", sector)).toBe("CAR-MEC");
     expect(resolvePreventiveWorkCenter("metalwork", sector)).toBe("CAR-SER");
     expect(resolvePreventiveWorkCenter("parts_purchase", sector)).toBe("CAR-CMP");
+  });
+
+  it("flags overdue planned date for uncompleted preventive orders including in_progress", () => {
+    const now = new Date("2026-11-27T12:00:00Z");
+    const plannedLate = getPreventiveOrderDelayInfo(
+      { status: "planned", scheduled_date: "2026-11-24", estimated_minutes: 60, started_at: null, finished_at: null },
+      now
+    );
+    expect(plannedLate.isDateOverdue).toBe(true);
+    expect(plannedLate.daysOverdue).toBe(3);
+    expect(plannedLate.isTimeExceeded).toBe(false);
+
+    const inProgressLate = getPreventiveOrderDelayInfo(
+      { status: "in_progress", scheduled_date: "2026-11-25", estimated_minutes: 60, started_at: "2026-11-27T11:30:00Z", finished_at: null },
+      now
+    );
+    expect(inProgressLate.isDateOverdue).toBe(true);
+    expect(inProgressLate.daysOverdue).toBe(2);
+    expect(inProgressLate.isTimeExceeded).toBe(false);
+  });
+
+  it("flags stipulated time exceeded for in_progress and completed backlog/preventive orders", () => {
+    const now = new Date("2026-11-27T14:00:00Z");
+    const runningOver = getPreventiveOrderDelayInfo(
+      { status: "in_progress", scheduled_date: null, estimated_minutes: 60, started_at: "2026-11-27T12:15:00Z", finished_at: null },
+      now
+    );
+    expect(runningOver.isDateOverdue).toBe(false);
+    expect(runningOver.isTimeExceeded).toBe(true);
+    expect(runningOver.durationMinutes).toBe(105);
+    expect(runningOver.overtimeMinutes).toBe(45);
+    expect(runningOver.percentOfEstimate).toBe(175);
+
+    const finishedOver = getPreventiveOrderDelayInfo(
+      { status: "completed", scheduled_date: "2026-11-20", estimated_minutes: 90, started_at: "2026-11-27T10:00:00Z", finished_at: "2026-11-27T12:00:00Z" },
+      now
+    );
+    expect(finishedOver.isDateOverdue).toBe(false);
+    expect(finishedOver.isTimeExceeded).toBe(true);
+    expect(finishedOver.overtimeMinutes).toBe(30);
+
+    const canceled = getPreventiveOrderDelayInfo(
+      { status: "canceled", scheduled_date: "2026-11-01", estimated_minutes: 30, started_at: "2026-11-01T10:00:00Z", finished_at: "2026-11-01T12:00:00Z" },
+      now
+    );
+    expect(canceled.isDateOverdue).toBe(false);
+    expect(canceled.isTimeExceeded).toBe(false);
   });
 });
