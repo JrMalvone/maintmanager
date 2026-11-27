@@ -90,6 +90,176 @@ export type Database = {
           },
         ]
       }
+      preventive_backlog_orders: {
+        Row: {
+          apontamentos: Json | null
+          created_at: string
+          description: string
+          end_date_sap: string | null
+          end_time_sap: string | null
+          estimated_minutes: number | null
+          finished_at: string | null
+          id: string
+          machine_id: string | null
+          machine_number: string | null
+          maintenance_type: string
+          materials_needed: string | null
+          opener_name: string
+          opener_registry: string
+          order_type: string
+          planned_at: string | null
+          planned_by: string | null
+          priority: string
+          sap_notification_number: string | null
+          sap_sync_message: string | null
+          sap_sync_status: string
+          sector_id: string | null
+          solution_description: string | null
+          spare_parts_used: string[] | null
+          start_date_sap: string | null
+          start_time_sap: string | null
+          started_at: string | null
+          status: string
+          technician_name: string | null
+          technician_registry: string | null
+          title: string
+          updated_at: string
+          work_center: string | null
+        }
+        Insert: {
+          apontamentos?: Json | null
+          created_at?: string
+          description: string
+          end_date_sap?: string | null
+          end_time_sap?: string | null
+          estimated_minutes?: number | null
+          finished_at?: string | null
+          id?: string
+          machine_id?: string | null
+          machine_number?: string | null
+          maintenance_type: string
+          materials_needed?: string | null
+          opener_name: string
+          opener_registry: string
+          order_type: string
+          planned_at?: string | null
+          planned_by?: string | null
+          priority?: string
+          sap_notification_number?: string | null
+          sap_sync_message?: string | null
+          sap_sync_status?: string
+          sector_id?: string | null
+          solution_description?: string | null
+          spare_parts_used?: string[] | null
+          start_date_sap?: string | null
+          start_time_sap?: string | null
+          started_at?: string | null
+          status?: string
+          technician_name?: string | null
+          technician_registry?: string | null
+          title: string
+          updated_at?: string
+          work_center?: string | null
+        }
+        Update: {
+          apontamentos?: Json | null
+          created_at?: string
+          description?: string
+          end_date_sap?: string | null
+          end_time_sap?: string | null
+          estimated_minutes?: number | null
+          finished_at?: string | null
+          id?: string
+          machine_id?: string | null
+          machine_number?: string | null
+          maintenance_type?: string
+          materials_needed?: string | null
+          opener_name?: string
+          opener_registry?: string
+          order_type?: string
+          planned_at?: string | null
+          planned_by?: string | null
+          priority?: string
+          sap_notification_number?: string | null
+          sap_sync_message?: string | null
+          sap_sync_status?: string
+          sector_id?: string | null
+          solution_description?: string | null
+          spare_parts_used?: string[] | null
+          start_date_sap?: string | null
+          start_time_sap?: string | null
+          started_at?: string | null
+          status?: string
+          technician_name?: string | null
+          technician_registry?: string | null
+          title?: string
+          updated_at?: string
+          work_center?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preventive_backlog_orders_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preventive_backlog_orders_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preventive_work_logs: {
+        Row: {
+          created_at: string
+          duration_minutes: number | null
+          ended_at: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          started_at: string
+          technician_name: string
+          technician_registry: string | null
+          work_center: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          started_at?: string
+          technician_name: string
+          technician_registry?: string | null
+          work_center: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          started_at?: string
+          technician_name?: string
+          technician_registry?: string | null
+          work_center?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preventive_work_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "preventive_backlog_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

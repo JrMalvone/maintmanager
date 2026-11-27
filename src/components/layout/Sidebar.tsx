@@ -6,6 +6,7 @@ import {
   Wrench,
   ClipboardPlus,
   ClipboardList,
+  CalendarCheck,
   BarChart3,
   Settings,
   Cog,
@@ -35,6 +36,12 @@ const navItems: NavItem[] = [
     label: "Ordens de Serviço",
     href: "/dashboard/orders",
     icon: ClipboardList,
+    roles: ["manutencao", "gestor"],
+  },
+  {
+    label: "Preventivas & Backlog",
+    href: "/dashboard/preventive",
+    icon: CalendarCheck,
     roles: ["manutencao", "gestor"],
   },
   {

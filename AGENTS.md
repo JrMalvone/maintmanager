@@ -8,3 +8,4 @@
 - Keep `/dashboard/tv` publicly accessible and read-only so dedicated television devices can open the live panel without authentication.
 - Keep the Raspberry Pi TV shell separate from the Windows shell; it loads only `/dashboard/tv` in kiosk mode and retries after network failures.
 - Keep the Android TV Home App in a separate Gradle module and application ID from the regular Android app so choosing it as the default launcher cannot replace normal maintenance access.- Compute MTBF and Availability from planned time (elapsed period × sector shifts × 8h per active machine) via src/lib/reliability.ts; never from gaps between consecutive stops, which mixes machines and breaks with 0–1 stops.
+- Keep preventive and backlog orders isolated in `preventive_backlog_orders` and `preventive_work_logs` so corrective KPIs stay uncontaminated; trigger SAP sync (`Pending`) only upon order completion.
