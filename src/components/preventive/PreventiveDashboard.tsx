@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { isInReleaseWindow } from "@/lib/preventiveSchedule";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { usePreventiveOrders } from "@/hooks/usePreventiveOrders";
 import { useMachines, useSectors } from "@/hooks/useData";
 import {
@@ -50,6 +53,7 @@ export function PreventiveDashboard() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return orders.filter((o) => {
+      if (o.order_type === "preventive" && o.scheduled_date && (o.status === "planned" || o.status === "pending_planning") && !isInReleaseWindow(o.scheduled_date)) return false;
       if (typeFilter !== "all" && o.order_type !== typeFilter) return false;
       if (maintFilter !== "all" && o.maintenance_type !== maintFilter) return false;
       if (priorityFilter !== "all" && o.priority !== priorityFilter) return false;
@@ -170,11 +174,9 @@ export function PreventiveDashboard() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Preventivas &amp; Backlog</h1>
-        <p className="text-sm text-muted-foreground">
-          Planejamento em reunião, estimativa de tempo e execução isolada da manutenção corretiva
-        </p>
+        <Button asChild variant="outline"><Link to="/dashboard/preventive/calendar">Calendário de Preventivas</Link></Button>
       </div>
 
       {/* Summary KPIs */}

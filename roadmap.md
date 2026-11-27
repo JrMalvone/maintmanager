@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Implementar periodicidade, geração automática sete dias antes e recálculo após conclusão
+- [x] Adicionar calendário projetado por setor e verificar fluxo autenticado
+
 - [x] Corrigir o limite de registros nas ordens e buscas relacionadas e verificar a listagem autenticada
 
 - [x] Adicionar centro de trabalho obrigatório por atuação no banco

@@ -14,6 +14,9 @@ export type PreventiveMaintenanceType =
 
 export interface PreventiveOrder {
   id: string;
+  plan_id?: string | null;
+  scheduled_date?: string | null;
+  periodicity?: import("./preventiveSchedule").Periodicity | null;
   order_type: PreventiveOrderType;
   status: PreventiveOrderStatus;
   priority: PreventivePriority;

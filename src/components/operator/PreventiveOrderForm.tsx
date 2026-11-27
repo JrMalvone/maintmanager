@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PERIODICITIES, Periodicity } from "@/lib/preventiveSchedule";
 import { z } from "zod";
 import { useSectors, useMachines } from "@/hooks/useData";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +47,8 @@ export function PreventiveOrderForm() {
   const { machines, loading: machinesLoading } = useMachines(selectedSector);
 
   const [orderType, setOrderType] = useState<PreventiveOrderType>("preventive");
+  const [periodicity, setPeriodicity] = useState<Periodicity>("once");
+  const [scheduledDate, setScheduledDate] = useState("");
   const [openerName, setOpenerName] = useState("");
   const [openerRegistry, setOpenerRegistry] = useState("");
   const [machineId, setMachineId] = useState("");
@@ -88,11 +91,12 @@ export function PreventiveOrderForm() {
 
     setSubmitting(true);
     try {
+      if (orderType === "preventive" && !scheduledDate) throw new Error("Informe a data da primeira execução.");
       const machine = machines.find((m) => m.id === machineId);
       const sector = sectors.find((s) => s.id === selectedSector);
       const workCenter = resolvePreventiveWorkCenter(maintenanceType, sector);
 
-      const { error } = await supabase.from("preventive_backlog_orders").insert({
+      const payload = {
         order_type: orderType,
         status: "pending_planning",
         priority: "medium",
@@ -107,13 +111,23 @@ export function PreventiveOrderForm() {
         opener_registry: openerRegistry.trim(),
         work_center: workCenter,
         sap_sync_status: "NotApplicable",
-      });
+      };
+      const { error } = orderType === "preventive"
+        ? await supabase.from("preventive_plans").insert({
+            sector_id: payload.sector_id, machine_id: payload.machine_id,
+            machine_number: payload.machine_number, title: payload.title,
+            description: payload.description, maintenance_type: payload.maintenance_type,
+            priority: payload.priority, materials_needed: payload.materials_needed,
+            opener_name: payload.opener_name, opener_registry: payload.opener_registry,
+            work_center: payload.work_center, periodicity, next_due_date: scheduledDate,
+          })
+        : await supabase.from("preventive_backlog_orders").insert(payload);
 
       if (error) throw error;
 
       toast({
         title: orderType === "preventive" ? "Preventiva Registrada" : "Melhoria (Backlog) Registrada",
-        description: "Enviada para Aguardando Planejamento de tempo e prioridade.",
+        description: orderType === "preventive" ? "Plano registrado no calendário de preventivas." : "Enviada para Aguardando Planejamento de tempo e prioridade.",
       });
 
       setSelectedSector("");
@@ -122,6 +136,8 @@ export function PreventiveOrderForm() {
       setTitle("");
       setDescription("");
       setMaterialsNeeded("");
+      setScheduledDate("");
+      setPeriodicity("once");
     } catch (error: unknown) {
       const message =
         error && typeof error === "object" && "message" in error && typeof (error as { message: unknown }).message === "string"
@@ -182,6 +198,22 @@ export function PreventiveOrderForm() {
             </Label>
           </RadioGroup>
         </div>
+
+        {orderType === "preventive" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-y border-border py-5">
+            <div className="space-y-2">
+              <Label htmlFor="preventivePeriodicity">Periodicidade *</Label>
+              <Select value={periodicity} onValueChange={(v) => setPeriodicity(v as Periodicity)}>
+                <SelectTrigger id="preventivePeriodicity"><SelectValue /></SelectTrigger>
+                <SelectContent>{Object.entries(PERIODICITIES).map(([key, item]) => <SelectItem key={key} value={key}>{item.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preventiveFirstDate">Primeira execução *</Label>
+              <Input id="preventiveFirstDate" type="date" required value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
+            </div>
+          </div>
+        )}
 
         {/* Requester Identification */}
         <div className="industrial-card p-6 space-y-4">

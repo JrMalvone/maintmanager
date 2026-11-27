@@ -8,6 +8,8 @@ import {
   formatEstimatedMinutes,
 } from "@/lib/preventiveOrders";
 import { formatElapsedTime } from "@/lib/dateUtils";
+import { PERIODICITIES } from "@/lib/preventiveSchedule";
+import { format, parseISO } from "date-fns";
 import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
 import { cn } from "@/lib/utils";
 import {
@@ -105,6 +107,7 @@ export function PreventiveOrderCard({
       </div>
 
       <p className="text-sm text-muted-foreground line-clamp-2">{order.description}</p>
+      {order.scheduled_date && <p className="text-xs font-semibold text-primary">Programada: {format(parseISO(order.scheduled_date), "dd/MM/yyyy")} · {order.periodicity ? PERIODICITIES[order.periodicity].label : "Única"}</p>}
 
       {/* Estimated / Execution Time Row */}
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border text-xs">

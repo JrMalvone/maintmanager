@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { PERIODICITIES } from "@/lib/preventiveSchedule";
+import { format, parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppAuth } from "@/hooks/useAppAuth";
 import { usePreventiveWorkLogs } from "@/hooks/usePreventiveOrders";
@@ -239,6 +241,7 @@ export function PreventiveOrderDetailSheet({
             )}
 
             {/* Core details */}
+            {order.scheduled_date && <div className="border-y border-border py-3 text-sm flex flex-wrap justify-between gap-2"><span>Programada: <strong>{format(parseISO(order.scheduled_date), "dd/MM/yyyy")}</strong></span><span>{order.periodicity ? PERIODICITIES[order.periodicity].label : "Única"}</span></div>}
             <div className="industrial-card p-4 space-y-3 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>

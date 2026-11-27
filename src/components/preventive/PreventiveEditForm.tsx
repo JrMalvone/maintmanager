@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PERIODICITIES, Periodicity } from "@/lib/preventiveSchedule";
 import { supabase } from "@/integrations/supabase/client";
 import type { Machine, Sector } from "@/hooks/useData";
 import {
@@ -48,6 +49,8 @@ export function PreventiveEditForm({
 }: PreventiveEditFormProps) {
   const { toast } = useToast();
   const [orderType, setOrderType] = useState<PreventiveOrderType>(order.order_type);
+  const [periodicity, setPeriodicity] = useState<Periodicity>(order.periodicity || "once");
+  const [scheduledDate, setScheduledDate] = useState(order.scheduled_date || "");
   const [status, setStatus] = useState<PreventiveOrderStatus>(order.status);
   const [priority, setPriority] = useState<PreventivePriority>(order.priority);
   const [maintenanceType, setMaintenanceType] = useState<PreventiveMaintenanceType>(order.maintenance_type);
@@ -97,6 +100,8 @@ export function PreventiveEditForm({
       const now = new Date();
       const payload: Record<string, unknown> = {
         order_type: orderType,
+        periodicity: orderType === "preventive" ? periodicity : null,
+        scheduled_date: scheduledDate || null,
         status: finalStatus,
         priority,
         maintenance_type: maintenanceType,
@@ -223,6 +228,13 @@ export function PreventiveEditForm({
           </Select>
         </div>
       </div>
+
+      {orderType === "preventive" && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5"><Label htmlFor="editPeriodicity">Periodicidade</Label>
+          <Select value={periodicity} onValueChange={(v) => setPeriodicity(v as Periodicity)}><SelectTrigger id="editPeriodicity"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(PERIODICITIES).map(([key,item]) => <SelectItem key={key} value={key}>{item.label}</SelectItem>)}</SelectContent></Select>
+        </div>
+        <div className="space-y-1.5"><Label htmlFor="editScheduledDate">Data programada</Label><Input id="editScheduledDate" type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} /></div>
+      </div>}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">

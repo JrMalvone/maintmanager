@@ -45,6 +45,9 @@ export function usePreventiveOrders() {
 
   useEffect(() => {
     fetchOrders();
+    const timer = window.setInterval(fetchOrders, 60000);
+    const onFocus = () => fetchOrders();
+    window.addEventListener("focus", onFocus);
     const channel = supabase
       .channel("preventive_backlog_orders_changes")
       .on(
@@ -55,6 +58,8 @@ export function usePreventiveOrders() {
       .subscribe();
 
     return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
       supabase.removeChannel(channel);
     };
   }, [fetchOrders]);

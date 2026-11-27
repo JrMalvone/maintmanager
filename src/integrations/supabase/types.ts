@@ -107,12 +107,15 @@ export type Database = {
           opener_name: string
           opener_registry: string
           order_type: string
+          periodicity: string | null
+          plan_id: string | null
           planned_at: string | null
           planned_by: string | null
           priority: string
           sap_notification_number: string | null
           sap_sync_message: string | null
           sap_sync_status: string
+          scheduled_date: string | null
           sector_id: string | null
           solution_description: string | null
           spare_parts_used: string[] | null
@@ -142,12 +145,15 @@ export type Database = {
           opener_name: string
           opener_registry: string
           order_type: string
+          periodicity?: string | null
+          plan_id?: string | null
           planned_at?: string | null
           planned_by?: string | null
           priority?: string
           sap_notification_number?: string | null
           sap_sync_message?: string | null
           sap_sync_status?: string
+          scheduled_date?: string | null
           sector_id?: string | null
           solution_description?: string | null
           spare_parts_used?: string[] | null
@@ -177,12 +183,15 @@ export type Database = {
           opener_name?: string
           opener_registry?: string
           order_type?: string
+          periodicity?: string | null
+          plan_id?: string | null
           planned_at?: string | null
           planned_by?: string | null
           priority?: string
           sap_notification_number?: string | null
           sap_sync_message?: string | null
           sap_sync_status?: string
+          scheduled_date?: string | null
           sector_id?: string | null
           solution_description?: string | null
           spare_parts_used?: string[] | null
@@ -205,7 +214,92 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "preventive_backlog_orders_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "preventive_plans"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "preventive_backlog_orders_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      preventive_plans: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          estimated_minutes: number | null
+          id: string
+          machine_id: string | null
+          machine_number: string | null
+          maintenance_type: string
+          materials_needed: string | null
+          next_due_date: string
+          opener_name: string
+          opener_registry: string
+          periodicity: string
+          priority: string
+          sector_id: string | null
+          title: string
+          updated_at: string
+          work_center: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description: string
+          estimated_minutes?: number | null
+          id?: string
+          machine_id?: string | null
+          machine_number?: string | null
+          maintenance_type: string
+          materials_needed?: string | null
+          next_due_date: string
+          opener_name: string
+          opener_registry: string
+          periodicity?: string
+          priority?: string
+          sector_id?: string | null
+          title: string
+          updated_at?: string
+          work_center?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          estimated_minutes?: number | null
+          id?: string
+          machine_id?: string | null
+          machine_number?: string | null
+          maintenance_type?: string
+          materials_needed?: string | null
+          next_due_date?: string
+          opener_name?: string
+          opener_registry?: string
+          periodicity?: string
+          priority?: string
+          sector_id?: string | null
+          title?: string
+          updated_at?: string
+          work_center?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "preventive_plans_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "preventive_plans_sector_id_fkey"
             columns: ["sector_id"]
             isOneToOne: false
             referencedRelation: "sectors"
@@ -491,6 +585,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_due_preventive_orders: { Args: never; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -502,6 +597,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      preventive_interval_days: { Args: { p: string }; Returns: number }
     }
     Enums: {
       app_role: "operator" | "technician" | "manager"

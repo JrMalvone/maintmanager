@@ -36,6 +36,27 @@
       "when": 1795739993851,
       "tag": "0004_grant_execute_has_role_authenticated",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795741613117,
+      "tag": "0005_preventive_recurring_plans_calendar",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795741742358,
+      "tag": "0006_link_existing_preventives_to_plans",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795741847286,
+      "tag": "0007_synchronize_preventive_plan_edits",
+      "breakpoints": true
     }
   ]
 }

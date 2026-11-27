@@ -1,5 +1,7 @@
 # Architecture decisions
 
+- Keep preventive recurrence in dedicated plans; generate one active cycle per plan with a daily SQL job and recalculate from actual completion in a transaction so calendar projections and execution stay consistent.
+
 - Gate backend-session restoration with a window-scoped login marker in `src/lib/auth.ts`, clearing restored tokens with local sign-out on a fresh window; this requires login after relaunch without editing the generated client or logging out other devices.
 
 - Paginate full service-order and work-log reads with `fetchAllRows` and stable ID tie-breakers; query active orders separately from closed history so the Data API row cap cannot hide new orders or truncate analytics.
