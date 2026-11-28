@@ -20,6 +20,7 @@ import { machineLabel } from "@/lib/machineLabel";
 import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
 import { PreventiveEditForm } from "./PreventiveEditForm";
 import { PreventiveWorkPanel } from "./PreventiveWorkPanel";
+import { OrderKanbanPartsPanel } from "@/components/kanban/OrderKanbanPartsPanel";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -391,6 +392,14 @@ export function PreventiveOrderDetailSheet({
                 refetchLogs();
                 onUpdate();
               }}
+            />
+
+            {/* Kanban Parts Consumption */}
+            <OrderKanbanPartsPanel
+              orderId={order.id}
+              orderType={order.order_type}
+              machineId={order.machine_id}
+              canEdit={order.status !== "completed" && order.status !== "canceled"}
             />
           </div>
         )}

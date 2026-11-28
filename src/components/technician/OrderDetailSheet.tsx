@@ -7,6 +7,7 @@ import { STATUS_LABELS } from "@/lib/constants";
 import { toSapDate, toSapTime, buildApontamento, type SapApontamento } from "@/lib/sapFormat";
 import { ActiveTeamPanel } from "./ActiveTeamPanel";
 import { WorkLogHistory } from "./WorkLogHistory";
+import { OrderKanbanPartsPanel } from "@/components/kanban/OrderKanbanPartsPanel";
 import ReactMarkdown from "react-markdown";
 import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
 import {
@@ -787,6 +788,15 @@ export function OrderDetailSheet({
                 <WorkLogHistory workLogs={workLogs} />
               </>
             )}
+
+            {/* Kanban Parts Consumption */}
+            <Separator />
+            <OrderKanbanPartsPanel
+              orderId={order.id}
+              orderType="corrective"
+              machineId={order.machine_id}
+              canEdit={order.status !== "closed"}
+            />
 
             {/* Solution (if closed) */}
             {order.status === "closed" && order.solution_description && (

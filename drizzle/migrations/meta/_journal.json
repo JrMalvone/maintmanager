@@ -57,6 +57,13 @@
       "when": 1795741847286,
       "tag": "0007_synchronize_preventive_plan_edits",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795824114044,
+      "tag": "0008_create_kanban_parts_system",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,7 @@ import TvPanelPage from "./pages/TvPanel";
 import EquipmentPage from "./pages/Equipment";
 import PreventivePage from "./pages/Preventive";
 import PreventiveCalendarPage from "./pages/PreventiveCalendar";
+import KanbanPartsPage from "./pages/KanbanParts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/dashboard/orders" element={<OrdersPage />} />
             <Route path="/dashboard/preventive" element={<PreventivePage />} />
             <Route path="/dashboard/preventive/calendar" element={<PreventiveCalendarPage />} />
+            <Route path="/dashboard/kanban" element={<KanbanPartsPage />} />
             <Route path="/dashboard/analytics" element={<AnalyticsPage />} />
             <Route path="/dashboard/settings" element={<SettingsPage />} />
             <Route path="/dashboard/equipment" element={<EquipmentPage />} />

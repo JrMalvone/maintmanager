@@ -8,6 +8,7 @@ import {
   ClipboardList,
   CalendarCheck,
   CalendarDays,
+  Boxes,
   BarChart3,
   Settings,
   Cog,
@@ -55,6 +56,12 @@ const navItems: NavItem[] = [
     label: "Calendário Preventivo",
     href: "/dashboard/preventive/calendar",
     icon: CalendarDays,
+    roles: ["manutencao", "gestor"],
+  },
+  {
+    label: "Kanban de Peças",
+    href: "/dashboard/kanban",
+    icon: Boxes,
     roles: ["manutencao", "gestor"],
   },
   {

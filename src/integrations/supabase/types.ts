@@ -14,6 +14,127 @@ export type Database = {
   }
   public: {
     Tables: {
+      kanban_movements: {
+        Row: {
+          actor_name: string | null
+          corrective_order_id: string | null
+          created_at: string
+          id: string
+          movement_type: string
+          new_quantity: number
+          notes: string | null
+          order_type: string | null
+          part_id: string
+          preventive_order_id: string | null
+          previous_quantity: number
+          quantity: number
+          reversed_movement_id: string | null
+        }
+        Insert: {
+          actor_name?: string | null
+          corrective_order_id?: string | null
+          created_at?: string
+          id?: string
+          movement_type: string
+          new_quantity: number
+          notes?: string | null
+          order_type?: string | null
+          part_id: string
+          preventive_order_id?: string | null
+          previous_quantity: number
+          quantity: number
+          reversed_movement_id?: string | null
+        }
+        Update: {
+          actor_name?: string | null
+          corrective_order_id?: string | null
+          created_at?: string
+          id?: string
+          movement_type?: string
+          new_quantity?: number
+          notes?: string | null
+          order_type?: string | null
+          part_id?: string
+          preventive_order_id?: string | null
+          previous_quantity?: number
+          quantity?: number
+          reversed_movement_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_movements_corrective_order_id_fkey"
+            columns: ["corrective_order_id"]
+            isOneToOne: false
+            referencedRelation: "service_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_movements_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_movements_preventive_order_id_fkey"
+            columns: ["preventive_order_id"]
+            isOneToOne: false
+            referencedRelation: "preventive_backlog_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_movements_reversed_movement_id_fkey"
+            columns: ["reversed_movement_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_parts: {
+        Row: {
+          category: string
+          code: string
+          created_at: string
+          current_quantity: number
+          description: string
+          id: string
+          machine_id: string
+          target_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          code: string
+          created_at?: string
+          current_quantity?: number
+          description: string
+          id?: string
+          machine_id: string
+          target_quantity: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string
+          current_quantity?: number
+          description?: string
+          id?: string
+          machine_id?: string
+          target_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_parts_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       machines: {
         Row: {
           code: string
@@ -598,6 +719,90 @@ export type Database = {
         Returns: boolean
       }
       preventive_interval_days: { Args: { p: string }; Returns: number }
+      record_kanban_consumption: {
+        Args: {
+          p_actor_name?: string
+          p_notes?: string
+          p_order_id: string
+          p_order_type: string
+          p_part_id: string
+          p_quantity: number
+        }
+        Returns: {
+          actor_name: string | null
+          corrective_order_id: string | null
+          created_at: string
+          id: string
+          movement_type: string
+          new_quantity: number
+          notes: string | null
+          order_type: string | null
+          part_id: string
+          preventive_order_id: string | null
+          previous_quantity: number
+          quantity: number
+          reversed_movement_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "kanban_movements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      replenish_kanban_part: {
+        Args: {
+          p_actor_name?: string
+          p_notes?: string
+          p_part_id: string
+          p_quantity: number
+        }
+        Returns: {
+          actor_name: string | null
+          corrective_order_id: string | null
+          created_at: string
+          id: string
+          movement_type: string
+          new_quantity: number
+          notes: string | null
+          order_type: string | null
+          part_id: string
+          preventive_order_id: string | null
+          previous_quantity: number
+          quantity: number
+          reversed_movement_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "kanban_movements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reverse_kanban_consumption: {
+        Args: { p_actor_name?: string; p_movement_id: string }
+        Returns: {
+          actor_name: string | null
+          corrective_order_id: string | null
+          created_at: string
+          id: string
+          movement_type: string
+          new_quantity: number
+          notes: string | null
+          order_type: string | null
+          part_id: string
+          preventive_order_id: string | null
+          previous_quantity: number
+          quantity: number
+          reversed_movement_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "kanban_movements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role: "operator" | "technician" | "manager"

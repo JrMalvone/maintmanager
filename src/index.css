@@ -161,6 +161,43 @@
     border: 1px solid hsl(var(--status-closed) / 0.5);
   }
 
+  /* Kanban stock traffic-light indicators */
+  .kanban-light-green {
+    @apply status-badge gap-1.5;
+    background-color: hsl(var(--status-closed) / 0.18);
+    color: hsl(var(--status-closed));
+    border: 1px solid hsl(var(--status-closed) / 0.5);
+  }
+
+  .kanban-light-yellow {
+    @apply status-badge gap-1.5;
+    background-color: hsl(var(--status-open) / 0.2);
+    color: hsl(var(--status-open));
+    border: 1px solid hsl(var(--status-open) / 0.55);
+  }
+
+  .kanban-light-red {
+    @apply status-badge gap-1.5;
+    background-color: hsl(var(--status-stopped) / 0.2);
+    color: hsl(var(--status-stopped));
+    border: 1px solid hsl(var(--status-stopped) / 0.55);
+  }
+
+  .kanban-dot-green {
+    background-color: hsl(var(--status-closed));
+    box-shadow: 0 0 8px hsl(var(--status-closed) / 0.7);
+  }
+
+  .kanban-dot-yellow {
+    background-color: hsl(var(--status-open));
+    box-shadow: 0 0 8px hsl(var(--status-open) / 0.7);
+  }
+
+  .kanban-dot-red {
+    background-color: hsl(var(--status-stopped));
+    box-shadow: 0 0 8px hsl(var(--status-stopped) / 0.75);
+  }
+
   /* Priority badges */
   .priority-low {
     @apply status-badge;
