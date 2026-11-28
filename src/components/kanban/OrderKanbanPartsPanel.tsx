@@ -63,7 +63,7 @@ export function OrderKanbanPartsPanel({
     [machineParts, extraParts]
   );
 
-  const selectedPart = selectedPartId ? partsMap.get(selectedPartId) : undefined;
+  const selectedPart = machineParts.find((part) => part.id === selectedPartId);
 
   const handleConsume = async () => {
     if (!selectedPart) {
@@ -151,8 +151,8 @@ export function OrderKanbanPartsPanel({
               <div className="text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2 rounded bg-muted/40 p-2.5">
                 <span>
                   {machineId
-                    ? "Nenhuma peça vinculada a este equipamento ou cadastrada como universal no Kanban."
-                    : "Nenhuma peça universal cadastrada no Kanban para ordens sem equipamento específico."}
+                    ? "Nenhuma peça vinculada a este equipamento ou cadastrada como universal no Kanban deste setor."
+                    : "Nenhuma peça universal disponível no Kanban do setor desta ordem."}
                 </span>
                 <Link to="/dashboard/kanban" className="text-primary hover:underline font-medium">
                   Cadastrar no Kanban

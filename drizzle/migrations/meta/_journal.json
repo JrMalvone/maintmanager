@@ -71,6 +71,13 @@
       "when": 1795829365823,
       "tag": "0009_kanban_parts_multi_machine_and_universal",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795874176026,
+      "tag": "0010_kanban_sector_inventory",
+      "breakpoints": true
     }
   ]
 }

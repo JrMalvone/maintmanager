@@ -6,6 +6,7 @@ export type KanbanMovementType = "consumption" | "replenishment" | "reversal" | 
 export interface KanbanPart {
   id: string;
   machine_id: string | null;
+  sector_id: string | null;
   is_universal: boolean;
   machine_ids: string[];
   code: string;
@@ -136,29 +137,24 @@ export function getActiveOrderConsumptions(movements: KanbanMovement[]): KanbanM
 }
 
 export function partAppliesToMachine(
-  part: Pick<KanbanPart, "is_universal" | "machine_ids">,
-  machineId: string | null
+  part: Pick<KanbanPart, "is_universal" | "machine_ids" | "sector_id">,
+  machineId: string | null,
+  sectorId: string | null
 ): boolean {
-  if (part.is_universal) return true;
-  if (!machineId) return false;
-  return part.machine_ids.includes(machineId);
+  if (!sectorId || part.sector_id !== sectorId) return false;
+  return part.is_universal || (machineId !== null && part.machine_ids.includes(machineId));
 }
 
 export function partAppliesToScope(
-  part: Pick<KanbanPart, "is_universal" | "machine_ids">,
+  part: Pick<KanbanPart, "is_universal" | "machine_ids" | "sector_id">,
   sectorFilter: string,
   machineFilter: string,
   machinesMap: Map<string, { sector_id: string | null }>
 ): boolean {
+  if (sectorFilter !== "all" && part.sector_id !== sectorFilter) return false;
   if (machineFilter === "universal") return part.is_universal;
   if (machineFilter !== "all") {
-    return part.is_universal || part.machine_ids.includes(machineFilter);
-  }
-  if (sectorFilter !== "all") {
-    return (
-      part.is_universal ||
-      part.machine_ids.some((id) => machinesMap.get(id)?.sector_id === sectorFilter)
-    );
+    return partAppliesToMachine(part, machineFilter, machinesMap.get(machineFilter)?.sector_id ?? null);
   }
   return true;
 }
@@ -171,24 +167,25 @@ export interface KanbanPartScopeSummary {
 }
 
 export function describeKanbanPartScope(
-  part: Pick<KanbanPart, "is_universal" | "machine_ids">,
+  part: Pick<KanbanPart, "is_universal" | "machine_ids" | "sector_id">,
   machinesMap: Map<string, { code: string; model?: string | null; sector_id: string | null }>,
   sectorsMap: Map<string, { name: string }>,
   formatMachine: (m: { code: string; model?: string | null } | undefined) => string
 ): KanbanPartScopeSummary {
+  const sectorName = part.sector_id ? sectorsMap.get(part.sector_id)?.name ?? "Setor não encontrado" : "Setor pendente";
   if (part.is_universal) {
     return {
       primary: "Universal · Todas as máquinas",
-      secondary: "Todos os setores",
-      tooltip: "Peça universal aplicável a todos os setores e equipamentos",
-      summaryText: "Universal · Todas as máquinas",
+      secondary: sectorName,
+      tooltip: `Todas as máquinas de ${sectorName}`,
+      summaryText: `Universal · ${sectorName}`,
     };
   }
 
   if (part.machine_ids.length === 0) {
     return {
       primary: "Sem equipamento vinculado",
-      secondary: "Sem setor",
+      secondary: sectorName,
       tooltip: "Nenhum equipamento vinculado",
       summaryText: "Sem equipamento vinculado",
     };
@@ -205,22 +202,8 @@ export function describeKanbanPartScope(
           .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }))
       : [`${part.machine_ids.length} equipamento(s)`];
 
-  const sectorNames = Array.from(
-    new Set(
-      linkedMachines
-        .map((m) => (m.sector_id ? sectorsMap.get(m.sector_id)?.name : undefined))
-        .filter((name): name is string => Boolean(name))
-    )
-  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-  const secondary =
-    sectorNames.length === 0
-      ? "Sem setor"
-      : sectorNames.length === 1
-        ? sectorNames[0]
-        : sectorNames.length === 2
-          ? sectorNames.join(" · ")
-          : `${sectorNames.length} setores (${sectorNames.slice(0, 2).join(", ")}...)`;
+  const sectorNames = [sectorName];
+  const secondary = sectorName;
 
   if (labels.length === 1) {
     return {

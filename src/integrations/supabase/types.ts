@@ -134,6 +134,7 @@ export type Database = {
           id: string
           is_universal: boolean
           machine_id: string | null
+          sector_id: string | null
           target_quantity: number
           updated_at: string
         }
@@ -146,6 +147,7 @@ export type Database = {
           id?: string
           is_universal?: boolean
           machine_id?: string | null
+          sector_id?: string | null
           target_quantity: number
           updated_at?: string
         }
@@ -158,6 +160,7 @@ export type Database = {
           id?: string
           is_universal?: boolean
           machine_id?: string | null
+          sector_id?: string | null
           target_quantity?: number
           updated_at?: string
         }
@@ -167,6 +170,13 @@ export type Database = {
             columns: ["machine_id"]
             isOneToOne: false
             referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_parts_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
             referencedColumns: ["id"]
           },
         ]

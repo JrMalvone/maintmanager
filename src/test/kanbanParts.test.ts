@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  describeKanbanPartScope,
   getActiveOrderConsumptions,
   getKanbanMissingQuantity,
   getKanbanStockPercent,
@@ -77,51 +76,33 @@ describe("kanbanParts rules", () => {
     expect(getActiveOrderConsumptions(movements).map((m) => m.id)).toEqual(["m2"]);
   });
 
-  it("matches multi-machine and universal parts across machines and sectors", () => {
-    const machinesMap = new Map([
-      ["m1", { code: "2136", model: "Prensa A", sector_id: "s1" }],
-      ["m2", { code: "2137", model: "Prensa B", sector_id: "s1" }],
-      ["m3", { code: "3010", model: "Torno C", sector_id: "s2" }],
-    ]);
-    const sectorsMap = new Map([
-      ["s1", { name: "Prensa" }],
-      ["s2", { name: "Usinagem" }],
-    ]);
-
-    const sharedPart = { is_universal: false, machine_ids: ["m1", "m3"] };
-    const universalPart = { is_universal: true, machine_ids: [] };
-    const singlePart = { is_universal: false, machine_ids: ["m2"] };
-
-    expect(partAppliesToMachine(sharedPart, "m1")).toBe(true);
-    expect(partAppliesToMachine(sharedPart, "m3")).toBe(true);
-    expect(partAppliesToMachine(sharedPart, "m2")).toBe(false);
-    expect(partAppliesToMachine(universalPart, "m2")).toBe(true);
-    expect(partAppliesToMachine(universalPart, null)).toBe(true);
-    expect(partAppliesToMachine(singlePart, null)).toBe(false);
-
-    expect(partAppliesToScope(sharedPart, "s1", "all", machinesMap)).toBe(true);
-    expect(partAppliesToScope(sharedPart, "s2", "all", machinesMap)).toBe(true);
-    expect(partAppliesToScope(singlePart, "s2", "all", machinesMap)).toBe(false);
-    expect(partAppliesToScope(universalPart, "s2", "all", machinesMap)).toBe(true);
-    expect(partAppliesToScope(universalPart, "all", "universal", machinesMap)).toBe(true);
-    expect(partAppliesToScope(sharedPart, "all", "universal", machinesMap)).toBe(false);
-
-    const sharedSummary = describeKanbanPartScope(
-      sharedPart,
-      machinesMap,
-      sectorsMap,
-      (m) => (m ? m.code : "—")
-    );
-    expect(sharedSummary.primary).toBe("2 máquinas: 2136, 3010");
-    expect(sharedSummary.secondary).toBe("Prensa · Usinagem");
-
-    const univSummary = describeKanbanPartScope(
-      universalPart,
-      machinesMap,
-      sectorsMap,
-      (m) => (m ? m.code : "—")
-    );
-    expect(univSummary.primary).toBe("Universal · Todas as máquinas");
-    expect(univSummary.secondary).toBe("Todos os setores");
+  it("isolates the same part code and stock targets by sector", () => {
+    const machines = new Map([["m1", { sector_id: "s1" }], ["m2", { sector_id: "s2" }]]);
+    const parts = [
+      { code: "6205", sector_id: "s1", machine_ids: ["m1"], is_universal: false, current_quantity: 8, target_quantity: 10 },
+      { code: "6205", sector_id: "s2", machine_ids: ["m2"], is_universal: false, current_quantity: 1, target_quantity: 4 },
+    ];
+    const first = parts.filter(p => partAppliesToScope(p, "s1", "all", machines));
+    const second = parts.filter(p => partAppliesToScope(p, "s2", "all", machines));
+    expect(first.map(p => [p.current_quantity, p.target_quantity])).toEqual([[8, 10]]);
+    expect(second.map(p => [p.current_quantity, p.target_quantity])).toEqual([[1, 4]]);
+    expect(summarizeKanbanParts(first).green).toBe(1);
+    expect(summarizeKanbanParts(second).yellow).toBe(1);
+  });
+  it("limits universal parts to their own sector including machine-less orders", () => {
+    const universal = { sector_id: "s1", is_universal: true, machine_ids: [] };
+    const machines = new Map([["m1", { sector_id: "s1" }], ["m2", { sector_id: "s2" }]]);
+    expect(partAppliesToMachine(universal, null, "s1")).toBe(true);
+    expect(partAppliesToMachine(universal, null, "s2")).toBe(false);
+    expect(partAppliesToMachine(universal, null, null)).toBe(false);
+    expect(partAppliesToScope(universal, "s2", "universal", machines)).toBe(false);
+    expect(partAppliesToScope(universal, "all", "m2", machines)).toBe(false);
+    expect(partAppliesToScope(universal, "s1", "m1", machines)).toBe(true);
+  });
+  it("only offers specific parts to linked machines in their sector", () => {
+    const part = { sector_id: "s1", is_universal: false, machine_ids: ["m1"] };
+    expect(partAppliesToMachine(part, "m1", "s1")).toBe(true);
+    expect(partAppliesToMachine(part, "m2", "s1")).toBe(false);
+    expect(partAppliesToMachine(part, "m1", "s2")).toBe(false);
   });
 });

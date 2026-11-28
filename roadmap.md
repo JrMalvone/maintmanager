@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Separar Kanban por setor, preservar estoque existente e verificar cadastro, reposição e baixa nas ordens
 
 - [x] Implementar periodicidade, geração automática sete dias antes e recálculo após conclusão
 - [x] Adicionar calendário projetado por setor e verificar fluxo autenticado

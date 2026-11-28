@@ -111,7 +111,7 @@ export function KanbanPartsDashboard() {
                 return `${m?.code || ""} ${m?.model || ""} ${s?.name || ""}`;
               })
               .join(" ");
-        const haystack = `${part.code} ${part.description} ${linkedText}`.toLowerCase();
+        const haystack = `${part.code} ${part.description} ${sectorsMap.get(part.sector_id ?? "")?.name ?? ""} ${linkedText}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
@@ -172,7 +172,7 @@ export function KanbanPartsDashboard() {
             Kanban de Peças
           </h1>
           <p className="text-sm text-muted-foreground">
-            Controle de peças mecânicas e eletrônicas compartilhadas ou universais com farol de reposição
+            Kanban por setor
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -45,7 +45,7 @@ export function KanbanPartDialog({
   defaultMachineId,
   onSave,
 }: KanbanPartDialogProps) {
-  const [sectorId, setSectorId] = useState<string>("all");
+  const [sectorId, setSectorId] = useState<string>("");
   const [machineSearch, setMachineSearch] = useState("");
   const [isUniversal, setIsUniversal] = useState(false);
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
@@ -67,8 +67,7 @@ export function KanbanPartDialog({
     setMachineSearch("");
     if (part) {
       const linkedIds = part.is_universal ? [] : part.machine_ids;
-      const firstMachine = linkedIds.length === 1 ? machines.find((m) => m.id === linkedIds[0]) : undefined;
-      setSectorId(firstMachine?.sector_id || "all");
+      setSectorId(part.sector_id ?? "");
       setIsUniversal(part.is_universal);
       setSelectedMachineIds(linkedIds);
       setCode(part.code);
@@ -85,7 +84,7 @@ export function KanbanPartDialog({
           : "";
       const machineObj = machines.find((m) => m.id === initialMachine);
       setSectorId(
-        machineObj?.sector_id || (defaultSectorId && defaultSectorId !== "all" ? defaultSectorId : "all")
+        machineObj?.sector_id || (defaultSectorId && defaultSectorId !== "all" ? defaultSectorId : "")
       );
       setIsUniversal(startUniversal);
       setSelectedMachineIds(initialMachine ? [initialMachine] : []);
@@ -101,7 +100,7 @@ export function KanbanPartDialog({
   const filteredMachines = useMemo(() => {
     const q = machineSearch.trim().toLowerCase();
     return machines.filter((m) => {
-      if (sectorId !== "all" && m.sector_id !== sectorId) return false;
+      if (!sectorId || m.sector_id !== sectorId) return false;
       if (q) {
         const sectorName = m.sector_id ? sectorsMap.get(m.sector_id)?.name || "" : "";
         const haystack = `${m.code} ${m.model || ""} ${sectorName}`.toLowerCase();
@@ -140,6 +139,10 @@ export function KanbanPartDialog({
     const parsedTarget = Number(targetQty);
     const parsedCurrent = Number(currentQty);
 
+    if (!sectorId) {
+      setError("Selecione o setor do Kanban.");
+      return;
+    }
     if (!isUniversal && selectedMachineIds.length === 0) {
       setError("Selecione pelo menos um equipamento ou marque como Peça Universal.");
       return;
@@ -165,6 +168,7 @@ export function KanbanPartDialog({
     try {
       await onSave(
         {
+          sector_id: sectorId,
           is_universal: isUniversal,
           machine_ids: isUniversal ? [] : selectedMachineIds,
           code: code.trim(),
@@ -227,15 +231,22 @@ export function KanbanPartDialog({
             />
           </div>
 
+          <div className="space-y-1.5">
+            <Label htmlFor="kanban-sector">Setor do Kanban *</Label>
+            <Select value={sectorId} disabled={Boolean(part?.sector_id)} onValueChange={(value) => { setSectorId(value); setSelectedMachineIds([]); }}>
+              <SelectTrigger id="kanban-sector"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+              <SelectContent>{sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-0.5">
                 <Label htmlFor="kanban-universal" className="flex items-center gap-1.5 font-semibold cursor-pointer">
                   <Globe className="w-4 h-4 text-primary" />
-                  Peça Universal (todas as máquinas)
+                  Peça Universal do Setor
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Disponível para todos os setores e equipamentos da fábrica
+                  Todas as máquinas do setor selecionado
                 </p>
               </div>
               <Switch
@@ -248,20 +259,6 @@ export function KanbanPartDialog({
             {!isUniversal && (
               <div className="space-y-2.5 pt-2 border-t border-border">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Select value={sectorId} onValueChange={setSectorId}>
-                    <SelectTrigger id="kanban-sector" className="h-9 text-xs">
-                      <SelectValue placeholder="Filtrar por setor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os setores</SelectItem>
-                      {sectors.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <Input

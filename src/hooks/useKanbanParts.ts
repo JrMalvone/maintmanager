@@ -9,6 +9,7 @@ import type {
 } from "@/lib/kanbanParts";
 
 export interface KanbanPartInput {
+  sector_id: string;
   is_universal: boolean;
   machine_ids: string[];
   code: string;
@@ -89,6 +90,7 @@ export function useKanbanParts() {
     const { data, error } = await supabase
       .from("kanban_parts")
       .insert({
+        sector_id: input.sector_id,
         is_universal: input.is_universal,
         machine_id: input.is_universal ? null : machineIds[0] ?? null,
         code: input.code.trim(),
@@ -121,6 +123,7 @@ export function useKanbanParts() {
     const { error } = await supabase
       .from("kanban_parts")
       .update({
+        sector_id: input.sector_id,
         is_universal: input.is_universal,
         machine_id: input.is_universal ? null : machineIds[0] ?? null,
         code: input.code.trim(),
@@ -221,55 +224,26 @@ export function useOrderKanbanParts(
     }
     setLoading(true);
 
-    const universalPromise = supabase
-      .from("kanban_parts")
-      .select("*")
-      .eq("is_universal", true);
-
-    const linkedIdsPromise = machineId
-      ? supabase
-          .from("kanban_part_machines")
-          .select("part_id")
-          .eq("machine_id", machineId)
-      : Promise.resolve({ data: [], error: null });
-
-    const filterColumn =
-      orderType === "corrective" ? "corrective_order_id" : "preventive_order_id";
-    const movPromise = supabase
-      .from("kanban_movements")
-      .select("*")
-      .eq(filterColumn, orderId)
-      .order("created_at", { ascending: false });
-
-    const [univRes, linkedRes, movRes] = await Promise.all([
-      universalPromise,
-      linkedIdsPromise,
-      movPromise,
-    ]);
-
-    const linkedPartIds = !linkedRes.error && linkedRes.data
-      ? Array.from(new Set(linkedRes.data.map((r) => r.part_id)))
-      : [];
-
-    const linkedPartsRes =
-      linkedPartIds.length > 0
-        ? await supabase.from("kanban_parts").select("*").in("id", linkedPartIds)
-        : { data: [], error: null };
-
-    const availableMap = new Map<string, KanbanPart>();
-    if (!linkedPartsRes.error && linkedPartsRes.data) {
-      for (const row of linkedPartsRes.data as RawKanbanPartRow[]) {
-        availableMap.set(row.id, {
-          ...row,
-          machine_ids: machineId ? [machineId] : [],
-        });
-      }
+    // Resolve scope from the actual order, including preventive orders without a machine.
+    let sectorId: string | null = null;
+    if (orderType === "corrective" && machineId) {
+      const { data } = await supabase.from("machines").select("sector_id").eq("id", machineId).maybeSingle();
+      sectorId = data?.sector_id ?? null;
+    } else if (orderType !== "corrective") {
+      const { data } = await supabase.from("preventive_backlog_orders").select("sector_id").eq("id", orderId).maybeSingle();
+      sectorId = data?.sector_id ?? null;
     }
-    if (!univRes.error && univRes.data) {
-      for (const row of univRes.data as RawKanbanPartRow[]) {
-        if (!availableMap.has(row.id)) {
-          availableMap.set(row.id, { ...row, machine_ids: [] });
-        }
+    const filterColumn = orderType === "corrective" ? "corrective_order_id" : "preventive_order_id";
+    const [partsRes, linkedRes, movRes] = await Promise.all([
+      sectorId ? fetchAllRows((from, to) => supabase.from("kanban_parts").select("*").eq("sector_id", sectorId).order("id").range(from, to)) : Promise.resolve({ data: [], error: null }),
+      machineId ? fetchAllRows((from, to) => supabase.from("kanban_part_machines").select("part_id").eq("machine_id", machineId).order("part_id").range(from, to)) : Promise.resolve({ data: [], error: null }),
+      supabase.from("kanban_movements").select("*").eq(filterColumn, orderId).order("created_at", { ascending: false }),
+    ]);
+    const linkedPartIds = new Set((linkedRes.data ?? []).map((r) => r.part_id));
+    const availableMap = new Map<string, KanbanPart>();
+    for (const row of (partsRes.data ?? []) as RawKanbanPartRow[]) {
+      if (row.is_universal || linkedPartIds.has(row.id) || (machineId && row.machine_id === machineId)) {
+        availableMap.set(row.id, { ...row, machine_ids: row.is_universal ? [] : machineId ? [machineId] : [] });
       }
     }
 
