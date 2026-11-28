@@ -11,27 +11,17 @@ import {
   PREVENTIVE_PRIORITY_LABELS,
   PREVENTIVE_STATUS_LABELS,
   PreventiveOrder,
-  PreventivePriority,
   formatEstimatedMinutes,
   getPreventiveOrderDelayInfo,
-  parseHoursMinutesToMinutes,
 } from "@/lib/preventiveOrders";
 import { machineLabel } from "@/lib/machineLabel";
 import { SapStatusBadge } from "@/components/shared/SapStatusBadge";
 import { PreventiveEditForm } from "./PreventiveEditForm";
+import { PreventivePlanningCard } from "./PreventivePlanningCard";
 import { PreventiveWorkPanel } from "./PreventiveWorkPanel";
 import { OrderKanbanPartsPanel } from "@/components/kanban/OrderKanbanPartsPanel";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +34,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, CalendarClock, CheckCircle2, Loader2, Package, Pencil, TimerOff, Trash2 } from "lucide-react";
+import { AlertTriangle, Package, Pencil, ShoppingCart, TimerOff, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PreventiveOrderDetailSheetProps {
@@ -68,10 +58,6 @@ export function PreventiveOrderDetailSheet({
   const { toast } = useToast();
   const { workLogs, refetch: refetchLogs } = usePreventiveWorkLogs(order?.id);
   const [editMode, setEditMode] = useState(false);
-  const [planHours, setPlanHours] = useState("");
-  const [planMinutes, setPlanMinutes] = useState("");
-  const [planPriority, setPlanPriority] = useState<PreventivePriority>("medium");
-  const [planning, setPlanning] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
@@ -85,21 +71,8 @@ export function PreventiveOrderDetailSheet({
   useEffect(() => {
     if (order) {
       setEditMode(false);
-      setPlanHours(order.estimated_minutes ? String(Math.floor(order.estimated_minutes / 60)) : "");
-      setPlanMinutes(order.estimated_minutes ? String(order.estimated_minutes % 60) : "");
-      setPlanPriority(order.priority);
     }
   }, [order?.id]);
-
-  useEffect(() => {
-    if (order) {
-      setPlanPriority(order.priority);
-      if (order.estimated_minutes) {
-        setPlanHours(String(Math.floor(order.estimated_minutes / 60)));
-        setPlanMinutes(String(order.estimated_minutes % 60));
-      }
-    }
-  }, [order?.estimated_minutes, order?.priority]);
 
   if (!order) return null;
 
@@ -114,43 +87,6 @@ export function PreventiveOrderDetailSheet({
       : delay.durationMinutes === 0
         ? "< 1min"
         : formatEstimatedMinutes(delay.durationMinutes);
-
-  async function handleQuickPlan(e: React.FormEvent) {
-    e.preventDefault();
-    if (!order) return;
-    const mins = parseHoursMinutesToMinutes(planHours, planMinutes);
-    if (!mins || mins <= 0) {
-      toast({
-        title: "Informe o tempo estimado",
-        description: "Preencha horas e/ou minutos (total maior que 0).",
-        variant: "destructive",
-      });
-      return;
-    }
-    setPlanning(true);
-    try {
-      const { error } = await supabase
-        .from("preventive_backlog_orders")
-        .update({
-          estimated_minutes: mins,
-          priority: planPriority,
-          status: "planned",
-          planned_at: new Date().toISOString(),
-        })
-        .eq("id", order.id);
-      if (error) throw error;
-      toast({
-        title: "Tempo Estipulado",
-        description: `Ordem planejada para ${formatEstimatedMinutes(mins)} e liberada para execução.`,
-      });
-      onUpdate();
-    } catch (error: unknown) {
-      const msg = error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "Falha";
-      toast({ title: "Erro ao planejar", description: msg, variant: "destructive" });
-    } finally {
-      setPlanning(false);
-    }
-  }
 
   async function handleDelete() {
     if (!order) return;
@@ -178,7 +114,14 @@ export function PreventiveOrderDetailSheet({
               <span className="status-badge bg-primary/15 text-primary border border-primary/40">
                 {PREVENTIVE_ORDER_TYPE_LABELS[order.order_type]}
               </span>
-              <span className="status-badge bg-secondary text-foreground border border-border">
+              <span
+                className={cn(
+                  "status-badge border",
+                  order.status === "waiting_parts"
+                    ? "bg-status-open/15 text-status-open border-status-open/50"
+                    : "bg-secondary text-foreground border-border"
+                )}
+              >
                 {PREVENTIVE_STATUS_LABELS[order.status]}
               </span>
             </div>
@@ -225,49 +168,27 @@ export function PreventiveOrderDetailSheet({
           />
         ) : (
           <div className="space-y-4">
-            {/* Quick Planning Card when awaiting planning */}
-            {order.status === "pending_planning" && canEdit && (
-              <form onSubmit={handleQuickPlan} className="industrial-card p-4 border-primary/50 bg-primary/5 space-y-3">
-                <h3 className="font-semibold text-sm flex items-center gap-2 text-primary">
-                  <CalendarClock className="w-4 h-4" /> Planejar Tempo e Prioridade (Reunião)
-                </h3>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="qHours" className="text-xs">Horas</Label>
-                    <Input id="qHours" type="number" min={0} placeholder="0" value={planHours} onChange={(e) => setPlanHours(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="qMins" className="text-xs">Minutos</Label>
-                    <Input id="qMins" type="number" min={0} max={59} placeholder="30" value={planMinutes} onChange={(e) => setPlanMinutes(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Prioridade</Label>
-                    <Select value={planPriority} onValueChange={(v) => setPlanPriority(v as PreventivePriority)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(PREVENTIVE_PRIORITY_LABELS) as PreventivePriority[]).map((p) => (
-                          <SelectItem key={p} value={p}>{PREVENTIVE_PRIORITY_LABELS[p]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={planning}>
-                  {planning ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle2 className="w-4 h-4 mr-1.5" /> Estipular Tempo e Liberar Execução</>}
-                </Button>
-              </form>
+            {/* Planning & Release Card when awaiting planning or waiting for parts */}
+            {(order.status === "pending_planning" || order.status === "waiting_parts") && canEdit && (
+              <PreventivePlanningCard order={order} onUpdate={onUpdate} />
             )}
 
             {/* Core details */}
-            {(delay.isDateOverdue || delay.isTimeExceeded) && (
+            {(delay.isDateOverdue || delay.isTimeExceeded || delay.isPartsOverdue) && (
               <div
                 className={cn(
                   "rounded-lg border p-3 space-y-1.5 text-xs",
-                  delay.isDateOverdue || order.status === "in_progress"
+                  delay.isDateOverdue || delay.isPartsOverdue || order.status === "in_progress"
                     ? "border-destructive/50 bg-destructive/10"
                     : "border-status-open/50 bg-status-open/10"
                 )}
               >
+                {delay.isPartsOverdue && order.parts_expected_date && (
+                  <p className="flex items-center gap-2 font-semibold text-destructive">
+                    <ShoppingCart className="w-4 h-4 shrink-0" />
+                    Prazo de chegada das peças vencido há {delay.partsDaysOverdue} dia(s) (previsto para {format(parseISO(order.parts_expected_date), "dd/MM/yyyy")}).
+                  </p>
+                )}
                 {delay.isDateOverdue && order.scheduled_date && (
                   <p className="flex items-center gap-2 font-semibold text-destructive">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -309,6 +230,33 @@ export function PreventiveOrderDetailSheet({
                   <span className="text-xs text-muted-foreground block">Solicitante</span>
                   <span className="font-semibold">{order.opener_name} ({order.opener_registry})</span>
                 </div>
+                <div>
+                  <span className="text-xs text-muted-foreground block">Material para Execução</span>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      order.has_materials === true
+                        ? "text-status-closed"
+                        : order.has_materials === false
+                          ? "text-status-open"
+                          : "text-muted-foreground"
+                    )}
+                  >
+                    {order.has_materials === true
+                      ? "Disponível"
+                      : order.has_materials === false
+                        ? "Aguardando compra"
+                        : "Não verificado"}
+                  </span>
+                </div>
+                {order.parts_expected_date && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Prazo Chegada Peças</span>
+                    <span className={cn("font-semibold", delay.isPartsOverdue ? "text-destructive" : "text-status-open")}>
+                      {format(parseISO(order.parts_expected_date), "dd/MM/yyyy")}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {order.estimated_minutes && durationText && delay.percentOfEstimate !== null && (

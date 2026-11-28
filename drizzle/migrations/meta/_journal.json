@@ -85,6 +85,13 @@
       "when": 1795877735271,
       "tag": "0011_kanban_cabinets_per_sector",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795882312250,
+      "tag": "0012_preventive_materials_and_waiting_parts",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@ import { dateKey, type Periodicity } from "./preventiveSchedule";
 export type PreventiveOrderType = "preventive" | "backlog";
 export type PreventiveOrderStatus =
   | "pending_planning"
+  | "waiting_parts"
   | "planned"
   | "in_progress"
   | "completed"
@@ -31,6 +32,8 @@ export interface PreventiveOrder {
   description: string;
   materials_needed: string | null;
   estimated_minutes: number | null;
+  has_materials: boolean | null;
+  parts_expected_date: string | null;
   planned_at: string | null;
   planned_by: string | null;
   opener_name: string;
@@ -74,6 +77,7 @@ export const PREVENTIVE_ORDER_TYPE_LABELS: Record<PreventiveOrderType, string> =
 
 export const PREVENTIVE_STATUS_LABELS: Record<PreventiveOrderStatus, string> = {
   pending_planning: "Aguardando Planejamento",
+  waiting_parts: "Aguardando Compra de Peças",
   planned: "Planejada",
   in_progress: "Em Andamento",
   completed: "Concluída",
@@ -131,17 +135,41 @@ export function parseHoursMinutesToMinutes(hoursInput: string, minutesInput: str
   return total > 0 ? total : -1;
 }
 
-/**
- * Stipulating an estimated time on an order awaiting planning automatically moves it to "planned".
- */
-export function resolveStatusAfterEstimate(
-  currentStatus: PreventiveOrderStatus,
-  estimatedMinutes: number | null
-): PreventiveOrderStatus {
-  if (currentStatus === "pending_planning" && estimatedMinutes !== null && estimatedMinutes > 0) {
-    return "planned";
+export function canReleasePreventiveOrder(
+  estimatedMinutes: number | null | undefined,
+  hasMaterials: boolean | null | undefined
+): boolean {
+  return Boolean(estimatedMinutes && estimatedMinutes > 0 && hasMaterials === true);
+}
+
+export function validatePreventiveTransition(params: {
+  nextStatus: PreventiveOrderStatus;
+  estimatedMinutes: number | null | undefined;
+  hasMaterials: boolean | null | undefined;
+  partsExpectedDate: string | null | undefined;
+}): { ok: boolean; reason?: string } {
+  const { nextStatus, estimatedMinutes, hasMaterials, partsExpectedDate } = params;
+
+  if (nextStatus === "waiting_parts") {
+    if (!partsExpectedDate || !/^\d{4}-\d{2}-\d{2}$/.test(partsExpectedDate.trim())) {
+      return { ok: false, reason: "Informe o prazo previsto para chegada das peças." };
+    }
+    return { ok: true };
   }
-  return currentStatus;
+
+  if (nextStatus === "planned" || nextStatus === "in_progress") {
+    if (!estimatedMinutes || estimatedMinutes <= 0) {
+      return { ok: false, reason: "Estipule o tempo estimado de execução antes de liberar a ordem." };
+    }
+    if (hasMaterials !== true) {
+      return {
+        ok: false,
+        reason: "Confirme que há material disponível antes de liberar a ordem para execução.",
+      };
+    }
+  }
+
+  return { ok: true };
 }
 
 /**
@@ -192,6 +220,8 @@ export function resolvePreventiveWorkCenter(
 export interface PreventiveDelayInfo {
   isDateOverdue: boolean;
   daysOverdue: number;
+  isPartsOverdue: boolean;
+  partsDaysOverdue: number;
   durationMinutes: number | null;
   isTimeExceeded: boolean;
   overtimeMinutes: number;
@@ -199,13 +229,18 @@ export interface PreventiveDelayInfo {
 }
 
 export function getPreventiveOrderDelayInfo(
-  order: Pick<PreventiveOrder, "status" | "scheduled_date" | "estimated_minutes" | "started_at" | "finished_at">,
+  order: Pick<
+    PreventiveOrder,
+    "status" | "scheduled_date" | "estimated_minutes" | "started_at" | "finished_at"
+  > & { parts_expected_date?: string | null },
   now: Date = new Date()
 ): PreventiveDelayInfo {
   if (order.status === "canceled") {
     return {
       isDateOverdue: false,
       daysOverdue: 0,
+      isPartsOverdue: false,
+      partsDaysOverdue: 0,
       durationMinutes: null,
       isTimeExceeded: false,
       overtimeMinutes: 0,
@@ -220,6 +255,13 @@ export function getPreventiveOrderDelayInfo(
   const daysOverdue =
     isDateOverdue && order.scheduled_date
       ? Math.max(1, differenceInCalendarDays(parseISO(todayKey), parseISO(order.scheduled_date)))
+      : 0;
+  const isPartsOverdue = Boolean(
+    order.status === "waiting_parts" && order.parts_expected_date && order.parts_expected_date < todayKey
+  );
+  const partsDaysOverdue =
+    isPartsOverdue && order.parts_expected_date
+      ? Math.max(1, differenceInCalendarDays(parseISO(todayKey), parseISO(order.parts_expected_date)))
       : 0;
 
   let durationMinutes: number | null = null;
@@ -243,6 +285,8 @@ export function getPreventiveOrderDelayInfo(
   return {
     isDateOverdue,
     daysOverdue,
+    isPartsOverdue,
+    partsDaysOverdue,
     durationMinutes,
     isTimeExceeded,
     overtimeMinutes,

@@ -14,7 +14,7 @@ export function usePreventiveOrders() {
         supabase
           .from("preventive_backlog_orders")
           .select("*")
-          .in("status", ["pending_planning", "planned", "in_progress"])
+          .in("status", ["pending_planning", "waiting_parts", "planned", "in_progress"])
           .order("created_at", { ascending: true })
           .order("id")
           .range(from, to)

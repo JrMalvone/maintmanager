@@ -311,6 +311,7 @@ export type Database = {
           end_time_sap: string | null
           estimated_minutes: number | null
           finished_at: string | null
+          has_materials: boolean | null
           id: string
           machine_id: string | null
           machine_number: string | null
@@ -319,6 +320,7 @@ export type Database = {
           opener_name: string
           opener_registry: string
           order_type: string
+          parts_expected_date: string | null
           periodicity: string | null
           plan_id: string | null
           planned_at: string | null
@@ -349,6 +351,7 @@ export type Database = {
           end_time_sap?: string | null
           estimated_minutes?: number | null
           finished_at?: string | null
+          has_materials?: boolean | null
           id?: string
           machine_id?: string | null
           machine_number?: string | null
@@ -357,6 +360,7 @@ export type Database = {
           opener_name: string
           opener_registry: string
           order_type: string
+          parts_expected_date?: string | null
           periodicity?: string | null
           plan_id?: string | null
           planned_at?: string | null
@@ -387,6 +391,7 @@ export type Database = {
           end_time_sap?: string | null
           estimated_minutes?: number | null
           finished_at?: string | null
+          has_materials?: boolean | null
           id?: string
           machine_id?: string | null
           machine_number?: string | null
@@ -395,6 +400,7 @@ export type Database = {
           opener_name?: string
           opener_registry?: string
           order_type?: string
+          parts_expected_date?: string | null
           periodicity?: string | null
           plan_id?: string | null
           planned_at?: string | null

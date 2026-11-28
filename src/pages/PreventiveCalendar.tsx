@@ -15,7 +15,7 @@ import { PreventiveOrderDetailSheet } from "@/components/preventive/PreventiveOr
 import { PreventivePlanEditor } from "@/components/preventive/PreventivePlanEditor";
 import { PERIODICITIES, Periodicity, projectPreventiveDates, dateKey, isInReleaseWindow } from "@/lib/preventiveSchedule";
 import { PreventiveOrder, PREVENTIVE_MAINTENANCE_LABELS, formatEstimatedMinutes, getPreventiveOrderDelayInfo } from "@/lib/preventiveOrders";
-import { AlertTriangle, ChevronLeft, ChevronRight, CalendarDays, ClipboardList, Loader2, Search, TimerOff } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, CalendarDays, ClipboardList, Loader2, Search, ShoppingCart, TimerOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type CalendarEvent = {
@@ -27,12 +27,16 @@ type CalendarEvent = {
   machine: string;
   isDateOverdue: boolean;
   daysOverdue: number;
+  isPartsOverdue: boolean;
+  partsDaysOverdue: number;
+  partsExpectedDate?: string | null;
   isTimeExceeded: boolean;
   overtimeMinutes: number;
 };
 const statusStyle: Record<string, string> = {
   Projetada: "text-muted-foreground border-border",
   Programada: "text-primary border-primary/50",
+  "Aguardando peças": "text-status-open border-status-open bg-status-open/10",
   "Em andamento": "text-status-progress border-status-progress/50",
   Concluída: "text-status-closed border-status-closed/50",
   "Data vencida": "text-destructive border-destructive bg-destructive/10",
@@ -72,13 +76,15 @@ function CalendarContent() {
           ? "Concluída"
           : order.status === "canceled"
             ? "Cancelada"
-            : order.status === "in_progress"
-              ? "Em andamento"
-              : delay.isDateOverdue
-                ? "Data vencida"
-                : isInReleaseWindow(scheduled, today)
-                  ? "Programada"
-                  : "Projetada";
+            : order.status === "waiting_parts"
+              ? "Aguardando peças"
+              : order.status === "in_progress"
+                ? "Em andamento"
+                : delay.isDateOverdue
+                  ? "Data vencida"
+                  : isInReleaseWindow(scheduled, today)
+                    ? "Programada"
+                    : "Projetada";
       result.push({
         date: scheduled,
         title: order.title,
@@ -87,6 +93,9 @@ function CalendarContent() {
         machine: order.machine_number ?? "Geral do setor",
         isDateOverdue: delay.isDateOverdue,
         daysOverdue: delay.daysOverdue,
+        isPartsOverdue: delay.isPartsOverdue,
+        partsDaysOverdue: delay.partsDaysOverdue,
+        partsExpectedDate: order.parts_expected_date,
         isTimeExceeded: delay.isTimeExceeded,
         overtimeMinutes: delay.overtimeMinutes,
       });
@@ -104,6 +113,8 @@ function CalendarContent() {
           machine: plan.machine_number ?? "Geral do setor",
           isDateOverdue,
           daysOverdue,
+          isPartsOverdue: false,
+          partsDaysOverdue: 0,
           isTimeExceeded: false,
           overtimeMinutes: 0,
         });
@@ -113,16 +124,17 @@ function CalendarContent() {
   },[orders,plans,sectorIds,area,search,start,end,today,now]);
   const overdueDateCount = useMemo(() => events.filter((e) => e.isDateOverdue).length, [events]);
   const exceededTimeCount = useMemo(() => events.filter((e) => e.isTimeExceeded).length, [events]);
+  const waitingPartsCount = useMemo(() => events.filter((e) => e.order?.status === "waiting_parts").length, [events]);
   const refresh=()=>{refetchPlans();refetchOrders();};
   function openEvent(event:CalendarEvent) {
     if(event.order) setSelectedOrderId(event.order.id);
     else if(event.plan) {
-      const activeOrder=orders.find(o=>o.plan_id===event.plan?.id && ["pending_planning","planned","in_progress"].includes(o.status));
+      const activeOrder=orders.find(o=>o.plan_id===event.plan?.id && ["pending_planning","waiting_parts","planned","in_progress"].includes(o.status));
       if(activeOrder)setSelectedOrderId(activeOrder.id);else setSelectedPlan(event.plan);
     }
   }
   const renderEvent = (event: CalendarEvent, compact = false) => {
-    const cardTone = event.isDateOverdue
+    const cardTone = event.isDateOverdue || event.isPartsOverdue
       ? "border-destructive bg-destructive/15 text-foreground hover:bg-destructive/20"
       : event.isTimeExceeded
         ? "border-status-open bg-status-open/15 text-foreground hover:bg-status-open/20"
@@ -131,7 +143,9 @@ function CalendarContent() {
       event.title,
       event.machine,
       event.status,
+      event.partsExpectedDate ? `Peças previstas: ${format(parseISO(event.partsExpectedDate), "dd/MM/yyyy")}` : "",
       event.isDateOverdue ? `Data vencida há ${event.daysOverdue}d` : "",
+      event.isPartsOverdue ? `Peças atrasadas há ${event.partsDaysOverdue}d` : "",
       event.isTimeExceeded ? `Tempo excedido (+${formatEstimatedMinutes(event.overtimeMinutes)})` : "",
     ]
       .filter(Boolean)
@@ -155,8 +169,25 @@ function CalendarContent() {
           <span className="block text-[10px] opacity-90">
             {event.machine} · {event.status}
           </span>
-          {(event.isDateOverdue || event.isTimeExceeded) && (
+          {(event.isDateOverdue || event.isTimeExceeded || event.partsExpectedDate) && (
             <span className="flex flex-wrap gap-1 pt-0.5">
+              {event.partsExpectedDate && (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold border",
+                    event.isPartsOverdue
+                      ? "bg-destructive/20 text-destructive border-destructive/50"
+                      : "bg-status-open/20 text-status-open border-status-open/50"
+                  )}
+                >
+                  <ShoppingCart className="h-2.5 w-2.5 shrink-0" />
+                  {event.isPartsOverdue
+                    ? compact
+                      ? `Peças -${event.partsDaysOverdue}d`
+                      : `Peças atrasadas (${event.partsDaysOverdue}d)`
+                    : `Peças ${format(parseISO(event.partsExpectedDate), "dd/MM")}`}
+                </span>
+              )}
               {event.isDateOverdue && (
                 <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold bg-destructive/20 text-destructive border border-destructive/50">
                   <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
@@ -190,7 +221,14 @@ function CalendarContent() {
       {Object.entries(statusStyle)
         .filter(([s]) => s !== "Cancelada")
         .map(([s, c]) => {
-          const badgeCount = s === "Data vencida" ? overdueDateCount : s === "Tempo excedido" ? exceededTimeCount : 0;
+          const badgeCount =
+            s === "Data vencida"
+              ? overdueDateCount
+              : s === "Tempo excedido"
+                ? exceededTimeCount
+                : s === "Aguardando peças"
+                  ? waitingPartsCount
+                  : 0;
           return (
             <span key={s} className={cn("border-l-2 px-2 py-0.5 rounded-r-sm font-medium", c)}>
               {s}

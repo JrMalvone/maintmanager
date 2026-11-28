@@ -72,16 +72,16 @@ export function PreventiveOrderCard({
       : delay.durationMinutes === 0
         ? "< 1min"
         : formatEstimatedMinutes(delay.durationMinutes);
-  const hasAlert = delay.isDateOverdue || delay.isTimeExceeded;
+  const hasAlert = delay.isDateOverdue || delay.isTimeExceeded || delay.isPartsOverdue;
 
   return (
     <div
       onClick={onClick}
       className={cn(
         "industrial-card p-4 cursor-pointer hover:border-primary/60 transition-all space-y-3",
-        delay.isDateOverdue || (delay.isTimeExceeded && order.status === "in_progress")
+        delay.isDateOverdue || delay.isPartsOverdue || (delay.isTimeExceeded && order.status === "in_progress")
           ? "border-l-4 border-l-destructive bg-destructive/5"
-          : delay.isTimeExceeded
+          : delay.isTimeExceeded || order.status === "waiting_parts"
             ? "border-l-4 border-l-status-open bg-status-open/5"
             : ""
       )}
@@ -126,9 +126,23 @@ export function PreventiveOrderCard({
           Programada: {format(parseISO(order.scheduled_date), "dd/MM/yyyy")} · {order.periodicity ? PERIODICITIES[order.periodicity].label : "Única"}
         </p>
       )}
+      {order.status === "waiting_parts" && (
+        <p className={cn("text-xs font-semibold flex items-center gap-1.5", delay.isPartsOverdue ? "text-destructive" : "text-status-open")}>
+          <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+          {order.parts_expected_date
+            ? `Aguardando peças · Previsão: ${format(parseISO(order.parts_expected_date), "dd/MM/yyyy")}`
+            : "Aguardando compra de peças"}
+        </p>
+      )}
 
       {hasAlert && (
         <div className="flex flex-wrap gap-1.5">
+          {delay.isPartsOverdue && (
+            <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold bg-destructive/20 text-destructive border border-destructive/50">
+              <ShoppingCart className="w-3 h-3 shrink-0" />
+              Peças atrasadas ({delay.partsDaysOverdue}d)
+            </span>
+          )}
           {delay.isDateOverdue && (
             <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold bg-destructive/20 text-destructive border border-destructive/50">
               <AlertTriangle className="w-3 h-3 shrink-0" />

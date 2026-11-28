@@ -32,8 +32,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Clock, Loader2, Play, Plus, StopCircle, User, UserPlus, Users, X } from "lucide-react";
-import { differenceInMinutes } from "date-fns";
+import { CheckCircle, Clock, Loader2, Lock, Play, Plus, StopCircle, User, UserPlus, Users, X } from "lucide-react";
+import { differenceInMinutes, format, parseISO } from "date-fns";
 
 interface StaffMember {
   id: string;
@@ -223,6 +223,21 @@ export function PreventiveWorkPanel({
 
   return (
     <div className="space-y-4">
+      {(order.status === "pending_planning" || order.status === "waiting_parts") && (
+        <div className="rounded-lg border border-border bg-muted/40 p-3.5 text-xs text-muted-foreground flex items-start gap-2.5">
+          <Lock className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+          <p>
+            {order.status === "waiting_parts"
+              ? `Execução bloqueada: ordem aguardando compra de peças${
+                  order.parts_expected_date
+                    ? ` (previsão de chegada: ${format(parseISO(order.parts_expected_date), "dd/MM/yyyy")})`
+                    : ""
+                }. Confirme a chegada do material e libere a ordem para os executantes.`
+              : "Execução bloqueada: estipule o tempo estimado, confirme a disponibilidade de material e clique em Liberar para Execução."}
+          </p>
+        </div>
+      )}
+
       {/* Start / Join Team */}
       {canExecute && (
         <div className="industrial-card p-4 space-y-3">

@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   PREVENTIVE_MAINTENANCE_LABELS,
+  PREVENTIVE_STATUS_LABELS,
+  canReleasePreventiveOrder,
   formatEstimatedMinutes,
   getPreventiveOrderDelayInfo,
   parseHoursMinutesToMinutes,
   resolvePreventiveWorkCenter,
   resolveSapSyncStatus,
-  resolveStatusAfterEstimate,
+  validatePreventiveTransition,
 } from "@/lib/preventiveOrders";
 
 describe("preventive & backlog order rules", () => {
@@ -21,14 +23,62 @@ describe("preventive & backlog order rules", () => {
     expect(PREVENTIVE_MAINTENANCE_LABELS.parts_purchase).toBe("Compra de Peças");
   });
 
-  it("moves pending_planning to planned when estimated time is stipulated", () => {
-    expect(resolveStatusAfterEstimate("pending_planning", 90)).toBe("planned");
-    expect(resolveStatusAfterEstimate("pending_planning", null)).toBe("pending_planning");
-    expect(resolveStatusAfterEstimate("in_progress", 90)).toBe("in_progress");
+  it("requires both estimated time and confirmed materials before releasing to execution", () => {
+    expect(canReleasePreventiveOrder(90, true)).toBe(true);
+    expect(canReleasePreventiveOrder(90, false)).toBe(false);
+    expect(canReleasePreventiveOrder(90, null)).toBe(false);
+    expect(canReleasePreventiveOrder(null, true)).toBe(false);
+    expect(canReleasePreventiveOrder(0, true)).toBe(false);
+
+    expect(
+      validatePreventiveTransition({
+        nextStatus: "planned",
+        estimatedMinutes: 60,
+        hasMaterials: true,
+        partsExpectedDate: null,
+      }).ok
+    ).toBe(true);
+    expect(
+      validatePreventiveTransition({
+        nextStatus: "planned",
+        estimatedMinutes: 60,
+        hasMaterials: false,
+        partsExpectedDate: null,
+      }).ok
+    ).toBe(false);
+    expect(
+      validatePreventiveTransition({
+        nextStatus: "planned",
+        estimatedMinutes: null,
+        hasMaterials: true,
+        partsExpectedDate: null,
+      }).ok
+    ).toBe(false);
+  });
+
+  it("requires parts expected date when moving to waiting_parts", () => {
+    expect(PREVENTIVE_STATUS_LABELS.waiting_parts).toBe("Aguardando Compra de Peças");
+    expect(
+      validatePreventiveTransition({
+        nextStatus: "waiting_parts",
+        estimatedMinutes: null,
+        hasMaterials: false,
+        partsExpectedDate: null,
+      }).ok
+    ).toBe(false);
+    expect(
+      validatePreventiveTransition({
+        nextStatus: "waiting_parts",
+        estimatedMinutes: 45,
+        hasMaterials: false,
+        partsExpectedDate: "2026-12-10",
+      }).ok
+    ).toBe(true);
   });
 
   it("only queues SAP sync when order is completed", () => {
     expect(resolveSapSyncStatus("pending_planning", "NotApplicable", null)).toBe("NotApplicable");
+    expect(resolveSapSyncStatus("waiting_parts", "NotApplicable", null)).toBe("NotApplicable");
     expect(resolveSapSyncStatus("planned", "NotApplicable", null)).toBe("NotApplicable");
     expect(resolveSapSyncStatus("in_progress", "NotApplicable", null)).toBe("NotApplicable");
     expect(resolveSapSyncStatus("canceled", "NotApplicable", null)).toBe("NotApplicable");
@@ -103,5 +153,36 @@ describe("preventive & backlog order rules", () => {
     );
     expect(canceled.isDateOverdue).toBe(false);
     expect(canceled.isTimeExceeded).toBe(false);
+  });
+
+  it("flags overdue expected arrival date for waiting_parts orders", () => {
+    const now = new Date("2026-11-28T12:00:00Z");
+    const lateParts = getPreventiveOrderDelayInfo(
+      {
+        status: "waiting_parts",
+        scheduled_date: null,
+        parts_expected_date: "2026-11-25",
+        estimated_minutes: 60,
+        started_at: null,
+        finished_at: null,
+      },
+      now
+    );
+    expect(lateParts.isPartsOverdue).toBe(true);
+    expect(lateParts.partsDaysOverdue).toBe(3);
+
+    const onTimeParts = getPreventiveOrderDelayInfo(
+      {
+        status: "waiting_parts",
+        scheduled_date: null,
+        parts_expected_date: "2026-12-05",
+        estimated_minutes: 60,
+        started_at: null,
+        finished_at: null,
+      },
+      now
+    );
+    expect(onTimeParts.isPartsOverdue).toBe(false);
+    expect(onTimeParts.partsDaysOverdue).toBe(0);
   });
 });

@@ -15,7 +15,7 @@ import {
   parseHoursMinutesToMinutes,
   resolvePreventiveWorkCenter,
   resolveSapSyncStatus,
-  resolveStatusAfterEstimate,
+  validatePreventiveTransition,
 } from "@/lib/preventiveOrders";
 import { toSapDate, toSapTime } from "@/lib/sapFormat";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,10 @@ export function PreventiveEditForm({
   const [machineId, setMachineId] = useState(order.machine_id || "none");
   const [estHours, setEstHours] = useState(order.estimated_minutes ? String(Math.floor(order.estimated_minutes / 60)) : "");
   const [estMinutes, setEstMinutes] = useState(order.estimated_minutes ? String(order.estimated_minutes % 60) : "");
+  const [hasMaterials, setHasMaterials] = useState<"unknown" | "yes" | "no">(
+    order.has_materials === true ? "yes" : order.has_materials === false ? "no" : "unknown"
+  );
+  const [partsExpectedDate, setPartsExpectedDate] = useState(order.parts_expected_date || "");
   const [title, setTitle] = useState(order.title);
   const [description, setDescription] = useState(order.description);
   const [materialsNeeded, setMaterialsNeeded] = useState(order.materials_needed || "");
@@ -81,12 +85,30 @@ export function PreventiveEditForm({
       return;
     }
 
+    const effectiveHasMaterials =
+      status === "waiting_parts"
+        ? false
+        : hasMaterials === "yes"
+          ? true
+          : hasMaterials === "no"
+            ? false
+            : null;
+    const effectivePartsDate = status === "waiting_parts" ? partsExpectedDate || null : null;
+
+    const transitionCheck = validatePreventiveTransition({
+      nextStatus: status,
+      estimatedMinutes: parsedEst,
+      hasMaterials: effectiveHasMaterials,
+      partsExpectedDate: effectivePartsDate,
+    });
+    if (!transitionCheck.ok) {
+      toast({ title: "Validação de status", description: transitionCheck.reason, variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
     try {
-      const finalStatus =
-        status === order.status
-          ? resolveStatusAfterEstimate(status, parsedEst)
-          : status;
+      const finalStatus = status;
       const selectedMachine = machineId !== "none" ? machines.find((m) => m.id === machineId) : null;
       const effectiveSectorId = selectedMachine?.sector_id || sectorId || null;
       const sector = sectors.find((s) => s.id === effectiveSectorId);
@@ -109,7 +131,9 @@ export function PreventiveEditForm({
         machine_id: selectedMachine?.id ?? null,
         machine_number: selectedMachine?.code ?? null,
         estimated_minutes: parsedEst,
-        planned_at: parsedEst && !order.planned_at ? now.toISOString() : order.planned_at,
+        has_materials: effectiveHasMaterials,
+        parts_expected_date: effectivePartsDate,
+        planned_at: finalStatus === "planned" && !order.planned_at ? now.toISOString() : order.planned_at,
         title: title.trim(),
         description: description.trim(),
         materials_needed: materialsNeeded.trim() || null,
@@ -169,7 +193,14 @@ export function PreventiveEditForm({
 
         <div className="space-y-1.5">
           <Label>Status</Label>
-          <Select value={status} onValueChange={(v) => setStatus(v as PreventiveOrderStatus)}>
+          <Select
+            value={status}
+            onValueChange={(v) => {
+              const next = v as PreventiveOrderStatus;
+              setStatus(next);
+              if (next === "waiting_parts") setHasMaterials("no");
+            }}
+          >
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {(Object.keys(PREVENTIVE_STATUS_LABELS) as PreventiveOrderStatus[]).map((k) => (
@@ -245,6 +276,38 @@ export function PreventiveEditForm({
           <Label htmlFor="editEstM">Tempo Estimado (Min)</Label>
           <Input id="editEstM" type="number" min={0} max={59} placeholder="0" value={estMinutes} onChange={(e) => setEstMinutes(e.target.value)} />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>Material Disponível</Label>
+          <Select
+            value={hasMaterials}
+            onValueChange={(v) => {
+              const val = v as "unknown" | "yes" | "no";
+              setHasMaterials(val);
+              if (val === "no" && status === "pending_planning") setStatus("waiting_parts");
+            }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unknown">Não verificado</SelectItem>
+              <SelectItem value="yes">Sim, material disponível</SelectItem>
+              <SelectItem value="no">Não, precisa comprar peças</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {(status === "waiting_parts" || hasMaterials === "no") && (
+          <div className="space-y-1.5">
+            <Label htmlFor="editPartsExpectedDate">Prazo Chegada das Peças *</Label>
+            <Input
+              id="editPartsExpectedDate"
+              type="date"
+              value={partsExpectedDate}
+              onChange={(e) => setPartsExpectedDate(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <div className="space-y-1.5">

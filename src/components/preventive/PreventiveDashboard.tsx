@@ -87,6 +87,23 @@ export function PreventiveDashboard() {
     () => filtered.filter((o) => o.status === "pending_planning").sort(sortPriorityThenOldest),
     [filtered]
   );
+  const waitingPartsOrders = useMemo(
+    () =>
+      filtered
+        .filter((o) => o.status === "waiting_parts")
+        .sort((a, b) => {
+          if (a.parts_expected_date && b.parts_expected_date) {
+            const cmp = a.parts_expected_date.localeCompare(b.parts_expected_date);
+            if (cmp !== 0) return cmp;
+          } else if (a.parts_expected_date) {
+            return -1;
+          } else if (b.parts_expected_date) {
+            return 1;
+          }
+          return sortPriorityThenOldest(a, b);
+        }),
+    [filtered]
+  );
   const plannedOrders = useMemo(
     () => filtered.filter((o) => o.status === "planned").sort(sortPriorityThenOldest),
     [filtered]
@@ -106,6 +123,10 @@ export function PreventiveDashboard() {
   const plannedTotalMinutes = useMemo(
     () => plannedOrders.reduce((acc, o) => acc + (o.estimated_minutes || 0), 0),
     [plannedOrders]
+  );
+  const waitingPartsOverdueCount = useMemo(
+    () => waitingPartsOrders.filter((o) => getPreventiveOrderDelayInfo(o, now).isPartsOverdue).length,
+    [waitingPartsOrders, now]
   );
   const plannedOverdueCount = useMemo(
     () => plannedOrders.filter((o) => getPreventiveOrderDelayInfo(o, now).isDateOverdue).length,
@@ -200,13 +221,22 @@ export function PreventiveDashboard() {
       </div>
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div className="industrial-card p-3.5">
           <p className="text-xs uppercase text-muted-foreground font-semibold">Aguard. Planejamento</p>
           <p className="text-2xl font-bold text-amber-400 mt-1">{pendingOrders.length}</p>
         </div>
         <div className="industrial-card p-3.5">
-          <p className="text-xs uppercase text-muted-foreground font-semibold">Planejadas</p>
+          <p className="text-xs uppercase text-muted-foreground font-semibold">Aguard. Peças</p>
+          <p className="text-2xl font-bold text-status-open mt-1">{waitingPartsOrders.length}</p>
+          {waitingPartsOverdueCount > 0 && (
+            <p className="text-xs font-semibold text-destructive mt-1">
+              {waitingPartsOverdueCount} com prazo vencido
+            </p>
+          )}
+        </div>
+        <div className="industrial-card p-3.5">
+          <p className="text-xs uppercase text-muted-foreground font-semibold">Liberadas</p>
           <p className="text-2xl font-bold text-primary mt-1">
             {plannedOrders.length}
             {plannedTotalMinutes > 0 && (
@@ -284,12 +314,15 @@ export function PreventiveDashboard() {
 
       {/* Workflow Tabs */}
       <Tabs defaultValue="pending_planning" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto gap-1 p-1">
           <TabsTrigger value="pending_planning" className="text-xs sm:text-sm py-1.5">
             Planejar ({pendingOrders.length})
           </TabsTrigger>
+          <TabsTrigger value="waiting_parts" className="text-xs sm:text-sm py-1.5">
+            Aguard. Peças ({waitingPartsOrders.length})
+          </TabsTrigger>
           <TabsTrigger value="planned" className="text-xs sm:text-sm py-1.5">
-            Planejadas ({plannedOrders.length})
+            Liberadas ({plannedOrders.length})
           </TabsTrigger>
           <TabsTrigger value="in_progress" className="text-xs sm:text-sm py-1.5">
             Em Andamento ({inProgressOrders.length})
@@ -302,8 +335,11 @@ export function PreventiveDashboard() {
         <TabsContent value="pending_planning" className="mt-4">
           {renderGrouped(pendingOrders, "Nenhuma ordem aguardando planejamento.")}
         </TabsContent>
+        <TabsContent value="waiting_parts" className="mt-4">
+          {renderGrouped(waitingPartsOrders, "Nenhuma ordem aguardando compra de peças.")}
+        </TabsContent>
         <TabsContent value="planned" className="mt-4">
-          {renderGrouped(plannedOrders, "Nenhuma ordem planejada aguardando execução.")}
+          {renderGrouped(plannedOrders, "Nenhuma ordem liberada aguardando execução.")}
         </TabsContent>
         <TabsContent value="in_progress" className="mt-4">
           {renderGrouped(inProgressOrders, "Nenhuma ordem em andamento no momento.")}
