@@ -64,6 +64,13 @@
       "when": 1795824114044,
       "tag": "0008_create_kanban_parts_system",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795829365823,
+      "tag": "0009_kanban_parts_multi_machine_and_universal",
+      "breakpoints": true
     }
   ]
 }

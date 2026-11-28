@@ -91,6 +91,39 @@ export type Database = {
           },
         ]
       }
+      kanban_part_machines: {
+        Row: {
+          created_at: string
+          machine_id: string
+          part_id: string
+        }
+        Insert: {
+          created_at?: string
+          machine_id: string
+          part_id: string
+        }
+        Update: {
+          created_at?: string
+          machine_id?: string
+          part_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_part_machines_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kanban_part_machines_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kanban_parts: {
         Row: {
           category: string
@@ -99,7 +132,8 @@ export type Database = {
           current_quantity: number
           description: string
           id: string
-          machine_id: string
+          is_universal: boolean
+          machine_id: string | null
           target_quantity: number
           updated_at: string
         }
@@ -110,7 +144,8 @@ export type Database = {
           current_quantity?: number
           description: string
           id?: string
-          machine_id: string
+          is_universal?: boolean
+          machine_id?: string | null
           target_quantity: number
           updated_at?: string
         }
@@ -121,7 +156,8 @@ export type Database = {
           current_quantity?: number
           description?: string
           id?: string
-          machine_id?: string
+          is_universal?: boolean
+          machine_id?: string | null
           target_quantity?: number
           updated_at?: string
         }

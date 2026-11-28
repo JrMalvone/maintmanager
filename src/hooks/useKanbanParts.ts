@@ -9,7 +9,8 @@ import type {
 } from "@/lib/kanbanParts";
 
 export interface KanbanPartInput {
-  machine_id: string;
+  is_universal: boolean;
+  machine_ids: string[];
   code: string;
   description: string;
   category: KanbanCategory;
@@ -17,21 +18,54 @@ export interface KanbanPartInput {
   current_quantity: number;
 }
 
+type RawKanbanPartRow = Omit<KanbanPart, "machine_ids">;
+
+function hydratePart(row: RawKanbanPartRow, linksMap: Map<string, string[]>): KanbanPart {
+  if (row.is_universal) {
+    return { ...row, machine_ids: [] };
+  }
+  const linked = linksMap.get(row.id) ?? [];
+  const machineIds =
+    linked.length > 0 ? linked : row.machine_id ? [row.machine_id] : [];
+  return { ...row, machine_ids: machineIds };
+}
+
 export function useKanbanParts() {
   const [parts, setParts] = useState<KanbanPart[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchParts = useCallback(async () => {
-    const { data, error } = await fetchAllRows((from, to) =>
-      supabase
-        .from("kanban_parts")
-        .select("*")
-        .order("code", { ascending: true })
-        .order("id", { ascending: true })
-        .range(from, to)
-    );
-    if (!error && data) {
-      setParts(data as KanbanPart[]);
+    const [partsRes, linksRes] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from("kanban_parts")
+          .select("*")
+          .order("code", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from("kanban_part_machines")
+          .select("part_id, machine_id")
+          .order("part_id", { ascending: true })
+          .order("machine_id", { ascending: true })
+          .range(from, to)
+      ),
+    ]);
+
+    if (!partsRes.error && partsRes.data) {
+      const linksMap = new Map<string, string[]>();
+      if (!linksRes.error && linksRes.data) {
+        for (const row of linksRes.data as { part_id: string; machine_id: string }[]) {
+          const list = linksMap.get(row.part_id) ?? [];
+          list.push(row.machine_id);
+          linksMap.set(row.part_id, list);
+        }
+      }
+      setParts(
+        (partsRes.data as RawKanbanPartRow[]).map((row) => hydratePart(row, linksMap))
+      );
     }
     setLoading(false);
   }, []);
@@ -48,23 +82,47 @@ export function useKanbanParts() {
   }, [fetchParts]);
 
   const createPart = async (input: KanbanPartInput) => {
-    const { error } = await supabase.from("kanban_parts").insert({
-      machine_id: input.machine_id,
-      code: input.code.trim(),
-      description: input.description.trim(),
-      category: input.category,
-      target_quantity: input.target_quantity,
-      current_quantity: input.current_quantity,
-    });
+    const machineIds = input.is_universal
+      ? []
+      : Array.from(new Set(input.machine_ids.filter(Boolean)));
+
+    const { data, error } = await supabase
+      .from("kanban_parts")
+      .insert({
+        is_universal: input.is_universal,
+        machine_id: input.is_universal ? null : machineIds[0] ?? null,
+        code: input.code.trim(),
+        description: input.description.trim(),
+        category: input.category,
+        target_quantity: input.target_quantity,
+        current_quantity: input.current_quantity,
+      })
+      .select("id")
+      .single();
     if (error) throw error;
+
+    if (!input.is_universal && machineIds.length > 0 && data?.id) {
+      const { error: linkError } = await supabase
+        .from("kanban_part_machines")
+        .insert(machineIds.map((machine_id) => ({ part_id: data.id, machine_id })));
+      if (linkError) {
+        await supabase.from("kanban_parts").delete().eq("id", data.id);
+        throw linkError;
+      }
+    }
     await fetchParts();
   };
 
   const updatePart = async (id: string, input: KanbanPartInput) => {
+    const machineIds = input.is_universal
+      ? []
+      : Array.from(new Set(input.machine_ids.filter(Boolean)));
+
     const { error } = await supabase
       .from("kanban_parts")
       .update({
-        machine_id: input.machine_id,
+        is_universal: input.is_universal,
+        machine_id: input.is_universal ? null : machineIds[0] ?? null,
         code: input.code.trim(),
         description: input.description.trim(),
         category: input.category,
@@ -73,6 +131,40 @@ export function useKanbanParts() {
       })
       .eq("id", id);
     if (error) throw error;
+
+    if (input.is_universal) {
+      const { error: delError } = await supabase
+        .from("kanban_part_machines")
+        .delete()
+        .eq("part_id", id);
+      if (delError) throw delError;
+    } else {
+      const { data: existingRows, error: readErr } = await supabase
+        .from("kanban_part_machines")
+        .select("machine_id")
+        .eq("part_id", id);
+      if (readErr) throw readErr;
+
+      const existingSet = new Set((existingRows ?? []).map((r) => r.machine_id));
+      const nextSet = new Set(machineIds);
+      const toAdd = machineIds.filter((mId) => !existingSet.has(mId));
+      const toRemove = Array.from(existingSet).filter((mId) => !nextSet.has(mId));
+
+      if (toAdd.length > 0) {
+        const { error: addErr } = await supabase
+          .from("kanban_part_machines")
+          .insert(toAdd.map((machine_id) => ({ part_id: id, machine_id })));
+        if (addErr) throw addErr;
+      }
+      if (toRemove.length > 0) {
+        const { error: remErr } = await supabase
+          .from("kanban_part_machines")
+          .delete()
+          .eq("part_id", id)
+          .in("machine_id", toRemove);
+        if (remErr) throw remErr;
+      }
+    }
     await fetchParts();
   };
 
@@ -116,23 +208,29 @@ export function useOrderKanbanParts(
   machineId: string | null
 ) {
   const [machineParts, setMachineParts] = useState<KanbanPart[]>([]);
+  const [extraParts, setExtraParts] = useState<KanbanPart[]>([]);
   const [orderMovements, setOrderMovements] = useState<KanbanMovement[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!orderId) {
       setMachineParts([]);
+      setExtraParts([]);
       setOrderMovements([]);
       return;
     }
     setLoading(true);
-    const partsPromise = machineId
+
+    const universalPromise = supabase
+      .from("kanban_parts")
+      .select("*")
+      .eq("is_universal", true);
+
+    const linkedIdsPromise = machineId
       ? supabase
-          .from("kanban_parts")
-          .select("*")
+          .from("kanban_part_machines")
+          .select("part_id")
           .eq("machine_id", machineId)
-          .order("category", { ascending: true })
-          .order("code", { ascending: true })
       : Promise.resolve({ data: [], error: null });
 
     const filterColumn =
@@ -143,13 +241,63 @@ export function useOrderKanbanParts(
       .eq(filterColumn, orderId)
       .order("created_at", { ascending: false });
 
-    const [partsRes, movRes] = await Promise.all([partsPromise, movPromise]);
-    if (!partsRes.error && partsRes.data) {
-      setMachineParts(partsRes.data as KanbanPart[]);
+    const [univRes, linkedRes, movRes] = await Promise.all([
+      universalPromise,
+      linkedIdsPromise,
+      movPromise,
+    ]);
+
+    const linkedPartIds = !linkedRes.error && linkedRes.data
+      ? Array.from(new Set(linkedRes.data.map((r) => r.part_id)))
+      : [];
+
+    const linkedPartsRes =
+      linkedPartIds.length > 0
+        ? await supabase.from("kanban_parts").select("*").in("id", linkedPartIds)
+        : { data: [], error: null };
+
+    const availableMap = new Map<string, KanbanPart>();
+    if (!linkedPartsRes.error && linkedPartsRes.data) {
+      for (const row of linkedPartsRes.data as RawKanbanPartRow[]) {
+        availableMap.set(row.id, {
+          ...row,
+          machine_ids: machineId ? [machineId] : [],
+        });
+      }
     }
-    if (!movRes.error && movRes.data) {
-      setOrderMovements(movRes.data as KanbanMovement[]);
+    if (!univRes.error && univRes.data) {
+      for (const row of univRes.data as RawKanbanPartRow[]) {
+        if (!availableMap.has(row.id)) {
+          availableMap.set(row.id, { ...row, machine_ids: [] });
+        }
+      }
     }
+
+    const sortedAvailable = Array.from(availableMap.values()).sort((a, b) => {
+      if (a.is_universal !== b.is_universal) return a.is_universal ? 1 : -1;
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      return a.code.localeCompare(b.code, "pt-BR", { numeric: true });
+    });
+    setMachineParts(sortedAvailable);
+
+    const movements = (!movRes.error && movRes.data ? movRes.data : []) as KanbanMovement[];
+    setOrderMovements(movements);
+
+    const missingPartIds = Array.from(
+      new Set(movements.map((m) => m.part_id).filter((pid) => !availableMap.has(pid)))
+    );
+    if (missingPartIds.length > 0) {
+      const { data: missingRows } = await supabase
+        .from("kanban_parts")
+        .select("*")
+        .in("id", missingPartIds);
+      setExtraParts(
+        ((missingRows as RawKanbanPartRow[]) ?? []).map((row) => ({ ...row, machine_ids: [] }))
+      );
+    } else {
+      setExtraParts([]);
+    }
+
     setLoading(false);
   }, [orderId, orderType, machineId]);
 
@@ -189,6 +337,7 @@ export function useOrderKanbanParts(
 
   return {
     machineParts,
+    extraParts,
     orderMovements,
     loading,
     refetch: fetchData,

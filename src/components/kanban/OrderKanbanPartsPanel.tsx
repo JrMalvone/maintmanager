@@ -41,6 +41,7 @@ export function OrderKanbanPartsPanel({
   const { toast } = useToast();
   const {
     machineParts,
+    extraParts,
     orderMovements,
     loading,
     recordConsumption,
@@ -58,8 +59,8 @@ export function OrderKanbanPartsPanel({
   );
 
   const partsMap = useMemo(
-    () => new Map(machineParts.map((p) => [p.id, p])),
-    [machineParts]
+    () => new Map([...extraParts, ...machineParts].map((p) => [p.id, p])),
+    [machineParts, extraParts]
   );
 
   const selectedPart = selectedPartId ? partsMap.get(selectedPartId) : undefined;
@@ -138,21 +139,21 @@ export function OrderKanbanPartsPanel({
         )}
       </div>
 
-      {!machineId ? (
-        <p className="text-xs text-muted-foreground">
-          Ordem sem equipamento vinculado. Vincule um equipamento para registrar peças do Kanban.
-        </p>
-      ) : loading ? (
+      {loading ? (
         <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          Carregando peças do Kanban deste equipamento...
+          Carregando peças do Kanban...
         </div>
       ) : (
         <>
           {canEdit && (
             machineParts.length === 0 ? (
               <div className="text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2 rounded bg-muted/40 p-2.5">
-                <span>Nenhuma peça cadastrada no Kanban para este equipamento.</span>
+                <span>
+                  {machineId
+                    ? "Nenhuma peça vinculada a este equipamento ou cadastrada como universal no Kanban."
+                    : "Nenhuma peça universal cadastrada no Kanban para ordens sem equipamento específico."}
+                </span>
                 <Link to="/dashboard/kanban" className="text-primary hover:underline font-medium">
                   Cadastrar no Kanban
                 </Link>
@@ -178,7 +179,8 @@ export function OrderKanbanPartsPanel({
                               <span className="font-mono font-semibold">{part.code}</span>
                               <span className="truncate max-w-[190px]">{part.description}</span>
                               <span className="text-muted-foreground">
-                                ({KANBAN_CATEGORY_LABELS[part.category]} · Saldo {part.current_quantity}/{part.target_quantity})
+                                ({part.is_universal ? "Universal · " : ""}
+                                {KANBAN_CATEGORY_LABELS[part.category]} · Saldo {part.current_quantity}/{part.target_quantity})
                               </span>
                             </span>
                           </SelectItem>

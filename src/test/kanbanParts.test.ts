@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  describeKanbanPartScope,
   getActiveOrderConsumptions,
   getKanbanMissingQuantity,
   getKanbanStockPercent,
   getKanbanTrafficLight,
+  partAppliesToMachine,
+  partAppliesToScope,
   sortKanbanPartsByUrgency,
   summarizeKanbanParts,
   type KanbanMovement,
@@ -72,5 +75,53 @@ describe("kanbanParts rules", () => {
       { ...base, id: "m3", movement_type: "reversal", reversed_movement_id: "m1" },
     ];
     expect(getActiveOrderConsumptions(movements).map((m) => m.id)).toEqual(["m2"]);
+  });
+
+  it("matches multi-machine and universal parts across machines and sectors", () => {
+    const machinesMap = new Map([
+      ["m1", { code: "2136", model: "Prensa A", sector_id: "s1" }],
+      ["m2", { code: "2137", model: "Prensa B", sector_id: "s1" }],
+      ["m3", { code: "3010", model: "Torno C", sector_id: "s2" }],
+    ]);
+    const sectorsMap = new Map([
+      ["s1", { name: "Prensa" }],
+      ["s2", { name: "Usinagem" }],
+    ]);
+
+    const sharedPart = { is_universal: false, machine_ids: ["m1", "m3"] };
+    const universalPart = { is_universal: true, machine_ids: [] };
+    const singlePart = { is_universal: false, machine_ids: ["m2"] };
+
+    expect(partAppliesToMachine(sharedPart, "m1")).toBe(true);
+    expect(partAppliesToMachine(sharedPart, "m3")).toBe(true);
+    expect(partAppliesToMachine(sharedPart, "m2")).toBe(false);
+    expect(partAppliesToMachine(universalPart, "m2")).toBe(true);
+    expect(partAppliesToMachine(universalPart, null)).toBe(true);
+    expect(partAppliesToMachine(singlePart, null)).toBe(false);
+
+    expect(partAppliesToScope(sharedPart, "s1", "all", machinesMap)).toBe(true);
+    expect(partAppliesToScope(sharedPart, "s2", "all", machinesMap)).toBe(true);
+    expect(partAppliesToScope(singlePart, "s2", "all", machinesMap)).toBe(false);
+    expect(partAppliesToScope(universalPart, "s2", "all", machinesMap)).toBe(true);
+    expect(partAppliesToScope(universalPart, "all", "universal", machinesMap)).toBe(true);
+    expect(partAppliesToScope(sharedPart, "all", "universal", machinesMap)).toBe(false);
+
+    const sharedSummary = describeKanbanPartScope(
+      sharedPart,
+      machinesMap,
+      sectorsMap,
+      (m) => (m ? m.code : "—")
+    );
+    expect(sharedSummary.primary).toBe("2 máquinas: 2136, 3010");
+    expect(sharedSummary.secondary).toBe("Prensa · Usinagem");
+
+    const univSummary = describeKanbanPartScope(
+      universalPart,
+      machinesMap,
+      sectorsMap,
+      (m) => (m ? m.code : "—")
+    );
+    expect(univSummary.primary).toBe("Universal · Todas as máquinas");
+    expect(univSummary.secondary).toBe("Todos os setores");
   });
 });

@@ -4,9 +4,11 @@ import { useKanbanParts, type KanbanPartInput } from "@/hooks/useKanbanParts";
 import { useAppAuth } from "@/hooks/useAppAuth";
 import {
   KANBAN_CATEGORY_LABELS,
+  describeKanbanPartScope,
   getKanbanMissingQuantity,
   getKanbanStockPercent,
   getKanbanTrafficLight,
+  partAppliesToScope,
   sortKanbanPartsByUrgency,
   summarizeKanbanParts,
   type KanbanCategory,
@@ -42,6 +44,7 @@ import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
   Boxes,
+  Globe,
   History,
   Loader2,
   PackagePlus,
@@ -84,6 +87,7 @@ export function KanbanPartsDashboard() {
     setSectorFilter(next);
     if (
       machineFilter !== "all" &&
+      machineFilter !== "universal" &&
       next !== "all" &&
       machinesMap.get(machineFilter)?.sector_id !== next
     ) {
@@ -95,17 +99,24 @@ export function KanbanPartsDashboard() {
   const scopedParts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return parts.filter((part) => {
-      const machine = machinesMap.get(part.machine_id);
-      if (sectorFilter !== "all" && machine?.sector_id !== sectorFilter) return false;
-      if (machineFilter !== "all" && part.machine_id !== machineFilter) return false;
+      if (!partAppliesToScope(part, sectorFilter, machineFilter, machinesMap)) return false;
       if (categoryFilter !== "all" && part.category !== categoryFilter) return false;
       if (q) {
-        const haystack = `${part.code} ${part.description} ${machine?.code || ""} ${machine?.model || ""}`.toLowerCase();
+        const linkedText = part.is_universal
+          ? "universal todas as maquinas"
+          : part.machine_ids
+              .map((id) => {
+                const m = machinesMap.get(id);
+                const s = m?.sector_id ? sectorsMap.get(m.sector_id) : undefined;
+                return `${m?.code || ""} ${m?.model || ""} ${s?.name || ""}`;
+              })
+              .join(" ");
+        const haystack = `${part.code} ${part.description} ${linkedText}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [parts, machinesMap, sectorFilter, machineFilter, categoryFilter, search]);
+  }, [parts, machinesMap, sectorsMap, sectorFilter, machineFilter, categoryFilter, search]);
 
   const summary = useMemo(() => summarizeKanbanParts(scopedParts), [scopedParts]);
 
@@ -149,7 +160,8 @@ export function KanbanPartsDashboard() {
     }
   };
 
-  const getMachineText = (machineId: string) => machineLabel(machinesMap.get(machineId));
+  const getPartScope = (part: KanbanPart) =>
+    describeKanbanPartScope(part, machinesMap, sectorsMap, machineLabel);
 
   return (
     <div className="space-y-6">
@@ -160,7 +172,7 @@ export function KanbanPartsDashboard() {
             Kanban de Peças
           </h1>
           <p className="text-sm text-muted-foreground">
-            Controle de peças mecânicas e eletrônicas por equipamento com farol de reposição
+            Controle de peças mecânicas e eletrônicas compartilhadas ou universais com farol de reposição
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -270,6 +282,7 @@ export function KanbanPartsDashboard() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os equipamentos</SelectItem>
+            <SelectItem value="universal">Somente peças universais</SelectItem>
             {sectorMachines.map((m) => (
               <SelectItem key={m.id} value={m.id}>
                 {machineLabel(m)}
@@ -337,8 +350,7 @@ export function KanbanPartsDashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {visibleParts.map((part) => {
-            const machine = machinesMap.get(part.machine_id);
-            const sector = machine?.sector_id ? sectorsMap.get(machine.sector_id) : undefined;
+            const scope = getPartScope(part);
             const light = getKanbanTrafficLight(part.current_quantity, part.target_quantity);
             const percent = getKanbanStockPercent(part.current_quantity, part.target_quantity);
             const missing = getKanbanMissingQuantity(part.current_quantity, part.target_quantity);
@@ -384,11 +396,15 @@ export function KanbanPartsDashboard() {
                     />
                   </div>
 
-                  <div className="text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-1">
-                    <span className="font-mono font-medium text-foreground">
-                      {machineLabel(machine)}
+                  <div
+                    className="text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-1"
+                    title={scope.tooltip}
+                  >
+                    <span className="font-mono font-medium text-foreground inline-flex items-center gap-1 min-w-0 truncate">
+                      {part.is_universal && <Globe className="w-3.5 h-3.5 text-primary shrink-0" />}
+                      <span className="truncate">{scope.primary}</span>
                     </span>
-                    <span>{sector?.name || "Sem setor"}</span>
+                    <span className="shrink-0">{scope.secondary}</span>
                   </div>
 
                   {/* Stock level bar */}
@@ -477,7 +493,7 @@ export function KanbanPartsDashboard() {
         open={!!replenishTarget}
         onOpenChange={(open) => !open && setReplenishTarget(null)}
         part={replenishTarget}
-        machineDisplay={replenishTarget ? getMachineText(replenishTarget.machine_id) : "—"}
+        machineDisplay={replenishTarget ? getPartScope(replenishTarget).summaryText : "—"}
         onConfirm={handleReplenish}
       />
 
@@ -485,7 +501,7 @@ export function KanbanPartsDashboard() {
         open={!!historyTarget}
         onOpenChange={(open) => !open && setHistoryTarget(null)}
         part={historyTarget}
-        machineDisplay={historyTarget ? getMachineText(historyTarget.machine_id) : "—"}
+        machineDisplay={historyTarget ? getPartScope(historyTarget).summaryText : "—"}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>

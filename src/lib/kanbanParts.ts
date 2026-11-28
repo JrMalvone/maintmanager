@@ -5,7 +5,9 @@ export type KanbanMovementType = "consumption" | "replenishment" | "reversal" | 
 
 export interface KanbanPart {
   id: string;
-  machine_id: string;
+  machine_id: string | null;
+  is_universal: boolean;
+  machine_ids: string[];
   code: string;
   description: string;
   category: KanbanCategory;
@@ -131,4 +133,112 @@ export function getActiveOrderConsumptions(movements: KanbanMovement[]): KanbanM
   return movements.filter(
     (m) => m.movement_type === "consumption" && !reversedIds.has(m.id)
   );
+}
+
+export function partAppliesToMachine(
+  part: Pick<KanbanPart, "is_universal" | "machine_ids">,
+  machineId: string | null
+): boolean {
+  if (part.is_universal) return true;
+  if (!machineId) return false;
+  return part.machine_ids.includes(machineId);
+}
+
+export function partAppliesToScope(
+  part: Pick<KanbanPart, "is_universal" | "machine_ids">,
+  sectorFilter: string,
+  machineFilter: string,
+  machinesMap: Map<string, { sector_id: string | null }>
+): boolean {
+  if (machineFilter === "universal") return part.is_universal;
+  if (machineFilter !== "all") {
+    return part.is_universal || part.machine_ids.includes(machineFilter);
+  }
+  if (sectorFilter !== "all") {
+    return (
+      part.is_universal ||
+      part.machine_ids.some((id) => machinesMap.get(id)?.sector_id === sectorFilter)
+    );
+  }
+  return true;
+}
+
+export interface KanbanPartScopeSummary {
+  primary: string;
+  secondary: string;
+  tooltip: string;
+  summaryText: string;
+}
+
+export function describeKanbanPartScope(
+  part: Pick<KanbanPart, "is_universal" | "machine_ids">,
+  machinesMap: Map<string, { code: string; model?: string | null; sector_id: string | null }>,
+  sectorsMap: Map<string, { name: string }>,
+  formatMachine: (m: { code: string; model?: string | null } | undefined) => string
+): KanbanPartScopeSummary {
+  if (part.is_universal) {
+    return {
+      primary: "Universal · Todas as máquinas",
+      secondary: "Todos os setores",
+      tooltip: "Peça universal aplicável a todos os setores e equipamentos",
+      summaryText: "Universal · Todas as máquinas",
+    };
+  }
+
+  if (part.machine_ids.length === 0) {
+    return {
+      primary: "Sem equipamento vinculado",
+      secondary: "Sem setor",
+      tooltip: "Nenhum equipamento vinculado",
+      summaryText: "Sem equipamento vinculado",
+    };
+  }
+
+  const linkedMachines = part.machine_ids
+    .map((id) => machinesMap.get(id))
+    .filter((m): m is NonNullable<typeof m> => Boolean(m));
+
+  const labels =
+    linkedMachines.length > 0
+      ? linkedMachines
+          .map((m) => formatMachine(m))
+          .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }))
+      : [`${part.machine_ids.length} equipamento(s)`];
+
+  const sectorNames = Array.from(
+    new Set(
+      linkedMachines
+        .map((m) => (m.sector_id ? sectorsMap.get(m.sector_id)?.name : undefined))
+        .filter((name): name is string => Boolean(name))
+    )
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  const secondary =
+    sectorNames.length === 0
+      ? "Sem setor"
+      : sectorNames.length === 1
+        ? sectorNames[0]
+        : sectorNames.length === 2
+          ? sectorNames.join(" · ")
+          : `${sectorNames.length} setores (${sectorNames.slice(0, 2).join(", ")}...)`;
+
+  if (labels.length === 1) {
+    return {
+      primary: labels[0],
+      secondary,
+      tooltip: `${labels[0]} — ${secondary}`,
+      summaryText: `${labels[0]} (${secondary})`,
+    };
+  }
+
+  const preview =
+    labels.length <= 2 ? labels.join(", ") : `${labels.slice(0, 2).join(", ")} +${labels.length - 2}`;
+  const fullList = labels.join(", ");
+
+  return {
+    primary: `${labels.length} máquinas: ${preview}`,
+    secondary,
+    tooltip: `${fullList}${sectorNames.length > 0 ? ` — Setores: ${sectorNames.join(", ")}` : ""}`,
+    summaryText: `${labels.length} máquinas (${preview})`,
+  };
 }
