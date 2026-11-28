@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  describeKanbanPartScope,
   getActiveOrderConsumptions,
   getKanbanMissingQuantity,
   getKanbanStockPercent,
@@ -79,8 +80,8 @@ describe("kanbanParts rules", () => {
   it("isolates the same part code and stock targets by sector", () => {
     const machines = new Map([["m1", { sector_id: "s1" }], ["m2", { sector_id: "s2" }]]);
     const parts = [
-      { code: "6205", sector_id: "s1", machine_ids: ["m1"], is_universal: false, current_quantity: 8, target_quantity: 10 },
-      { code: "6205", sector_id: "s2", machine_ids: ["m2"], is_universal: false, current_quantity: 1, target_quantity: 4 },
+      { code: "6205", sector_id: "s1", cabinet_id: "c1", machine_ids: ["m1"], is_universal: false, current_quantity: 8, target_quantity: 10 },
+      { code: "6205", sector_id: "s2", cabinet_id: "c2", machine_ids: ["m2"], is_universal: false, current_quantity: 1, target_quantity: 4 },
     ];
     const first = parts.filter(p => partAppliesToScope(p, "s1", "all", machines));
     const second = parts.filter(p => partAppliesToScope(p, "s2", "all", machines));
@@ -89,8 +90,44 @@ describe("kanbanParts rules", () => {
     expect(summarizeKanbanParts(first).green).toBe(1);
     expect(summarizeKanbanParts(second).yellow).toBe(1);
   });
+
+  it("isolates the same part code across multiple cabinets within the same sector", () => {
+    const machines = new Map([
+      ["m1", { sector_id: "s1" }],
+      ["m2", { sector_id: "s1" }],
+    ]);
+    const parts = [
+      { code: "6205", sector_id: "s1", cabinet_id: "cab-a", machine_ids: ["m1", "m2"], is_universal: false, current_quantity: 6, target_quantity: 8 },
+      { code: "6205", sector_id: "s1", cabinet_id: "cab-b", machine_ids: ["m2"], is_universal: false, current_quantity: 0, target_quantity: 4 },
+    ];
+    const cabA = parts.filter(p => partAppliesToScope(p, "s1", "all", machines, "cab-a"));
+    const cabB = parts.filter(p => partAppliesToScope(p, "s1", "all", machines, "cab-b"));
+    const forM2 = parts.filter(p => partAppliesToScope(p, "s1", "m2", machines, "all"));
+    expect(cabA.map(p => p.current_quantity)).toEqual([6]);
+    expect(cabB.map(p => p.current_quantity)).toEqual([0]);
+    expect(summarizeKanbanParts(cabA).green).toBe(1);
+    expect(summarizeKanbanParts(cabB).red).toBe(1);
+    expect(forM2).toHaveLength(2);
+  });
+
+  it("includes cabinet and sector names in scope description", () => {
+    const machines = new Map([["m1", { code: "0102", model: "Prensa", sector_id: "s1" }]]);
+    const sectors = new Map([["s1", { name: "Estamparia" }]]);
+    const cabinets = new Map([["c1", { name: "Armário Mecânico 1" }]]);
+    const scope = describeKanbanPartScope(
+      { sector_id: "s1", cabinet_id: "c1", is_universal: false, machine_ids: ["m1"] },
+      machines,
+      sectors,
+      (m) => (m ? `${m.code} - ${m.model}` : ""),
+      cabinets
+    );
+    expect(scope.cabinetName).toBe("Armário Mecânico 1");
+    expect(scope.secondary).toBe("Armário Mecânico 1 · Estamparia");
+    expect(scope.summaryText).toContain("Armário Mecânico 1");
+  });
+
   it("limits universal parts to their own sector including machine-less orders", () => {
-    const universal = { sector_id: "s1", is_universal: true, machine_ids: [] };
+    const universal = { sector_id: "s1", cabinet_id: "c1", is_universal: true, machine_ids: [] };
     const machines = new Map([["m1", { sector_id: "s1" }], ["m2", { sector_id: "s2" }]]);
     expect(partAppliesToMachine(universal, null, "s1")).toBe(true);
     expect(partAppliesToMachine(universal, null, "s2")).toBe(false);

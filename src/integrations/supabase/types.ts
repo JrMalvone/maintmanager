@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      kanban_cabinets: {
+        Row: {
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+          sector_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+          sector_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+          sector_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_cabinets_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kanban_movements: {
         Row: {
           actor_name: string | null
@@ -126,6 +161,7 @@ export type Database = {
       }
       kanban_parts: {
         Row: {
+          cabinet_id: string | null
           category: string
           code: string
           created_at: string
@@ -139,6 +175,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cabinet_id?: string | null
           category?: string
           code: string
           created_at?: string
@@ -152,6 +189,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cabinet_id?: string | null
           category?: string
           code?: string
           created_at?: string
@@ -165,6 +203,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "kanban_parts_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_cabinets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "kanban_parts_machine_id_fkey"
             columns: ["machine_id"]

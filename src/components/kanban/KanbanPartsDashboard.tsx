@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import { useMachines, useSectors } from "@/hooks/useData";
-import { useKanbanParts, type KanbanPartInput } from "@/hooks/useKanbanParts";
+import {
+  useKanbanParts,
+  type KanbanCabinetInput,
+  type KanbanPartInput,
+} from "@/hooks/useKanbanParts";
 import { useAppAuth } from "@/hooks/useAppAuth";
 import {
   KANBAN_CATEGORY_LABELS,
@@ -11,12 +15,15 @@ import {
   partAppliesToScope,
   sortKanbanPartsByUrgency,
   summarizeKanbanParts,
+  type KanbanCabinet,
   type KanbanCategory,
   type KanbanPart,
   type KanbanTrafficLight,
 } from "@/lib/kanbanParts";
 import { machineLabel } from "@/lib/machineLabel";
 import { KanbanTrafficBadge, KanbanTrafficDot } from "./KanbanTrafficBadge";
+import { KanbanCabinetDialog } from "./KanbanCabinetDialog";
+import { KanbanCabinetsStrip } from "./KanbanCabinetsStrip";
 import { KanbanPartDialog } from "./KanbanPartDialog";
 import { KanbanReplenishDialog } from "./KanbanReplenishDialog";
 import { KanbanMovementsDialog } from "./KanbanMovementsDialog";
@@ -43,6 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
+  Archive,
   Boxes,
   Globe,
   History,
@@ -61,13 +69,29 @@ export function KanbanPartsDashboard() {
   const { toast } = useToast();
   const { sectors } = useSectors();
   const { machines } = useMachines(undefined, false);
-  const { parts, loading, createPart, updatePart, deletePart, replenishPart } = useKanbanParts();
+  const {
+    cabinets,
+    parts,
+    loading,
+    createCabinet,
+    updateCabinet,
+    deleteCabinet,
+    createPart,
+    updatePart,
+    deletePart,
+    replenishPart,
+  } = useKanbanParts();
 
   const [sectorFilter, setSectorFilter] = useState("all");
+  const [cabinetFilter, setCabinetFilter] = useState("all");
   const [machineFilter, setMachineFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | KanbanCategory>("all");
   const [lightFilter, setLightFilter] = useState<LightFilter>("all");
   const [search, setSearch] = useState("");
+
+  const [cabinetDialogOpen, setCabinetDialogOpen] = useState(false);
+  const [editingCabinet, setEditingCabinet] = useState<KanbanCabinet | null>(null);
+  const [deleteCabinetTarget, setDeleteCabinetTarget] = useState<KanbanCabinet | null>(null);
 
   const [partDialogOpen, setPartDialogOpen] = useState(false);
   const [editingPart, setEditingPart] = useState<KanbanPart | null>(null);
@@ -76,15 +100,30 @@ export function KanbanPartsDashboard() {
   const [deleteTarget, setDeleteTarget] = useState<KanbanPart | null>(null);
 
   const sectorsMap = useMemo(() => new Map(sectors.map((s) => [s.id, s])), [sectors]);
+  const cabinetsMap = useMemo(() => new Map(cabinets.map((c) => [c.id, c])), [cabinets]);
   const machinesMap = useMemo(() => new Map(machines.map((m) => [m.id, m])), [machines]);
 
+  const visibleCabinets = useMemo(() => {
+    if (sectorFilter === "all") return cabinets;
+    return cabinets.filter((c) => c.sector_id === sectorFilter);
+  }, [cabinets, sectorFilter]);
+
   const sectorMachines = useMemo(() => {
-    if (sectorFilter === "all") return machines;
-    return machines.filter((m) => m.sector_id === sectorFilter);
-  }, [machines, sectorFilter]);
+    const effectiveSector =
+      sectorFilter !== "all"
+        ? sectorFilter
+        : cabinetFilter !== "all"
+          ? cabinetsMap.get(cabinetFilter)?.sector_id ?? "all"
+          : "all";
+    if (effectiveSector === "all") return machines;
+    return machines.filter((m) => m.sector_id === effectiveSector);
+  }, [machines, sectorFilter, cabinetFilter, cabinetsMap]);
 
   const handleSectorChange = (next: string) => {
     setSectorFilter(next);
+    if (cabinetFilter !== "all" && next !== "all" && cabinetsMap.get(cabinetFilter)?.sector_id !== next) {
+      setCabinetFilter("all");
+    }
     if (
       machineFilter !== "all" &&
       machineFilter !== "universal" &&
@@ -95,11 +134,21 @@ export function KanbanPartsDashboard() {
     }
   };
 
+  const handleCabinetChange = (next: string) => {
+    setCabinetFilter(next);
+    if (next !== "all" && machineFilter !== "all" && machineFilter !== "universal") {
+      const cabSector = cabinetsMap.get(next)?.sector_id;
+      if (cabSector && machinesMap.get(machineFilter)?.sector_id !== cabSector) {
+        setMachineFilter("all");
+      }
+    }
+  };
+
   // Base scope (sector + machine + category + search) for accurate summary counters
   const scopedParts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return parts.filter((part) => {
-      if (!partAppliesToScope(part, sectorFilter, machineFilter, machinesMap)) return false;
+      if (!partAppliesToScope(part, sectorFilter, machineFilter, machinesMap, cabinetFilter)) return false;
       if (categoryFilter !== "all" && part.category !== categoryFilter) return false;
       if (q) {
         const linkedText = part.is_universal
@@ -111,12 +160,13 @@ export function KanbanPartsDashboard() {
                 return `${m?.code || ""} ${m?.model || ""} ${s?.name || ""}`;
               })
               .join(" ");
-        const haystack = `${part.code} ${part.description} ${sectorsMap.get(part.sector_id ?? "")?.name ?? ""} ${linkedText}`.toLowerCase();
+        const cabName = part.cabinet_id ? cabinetsMap.get(part.cabinet_id)?.name ?? "" : "";
+        const haystack = `${part.code} ${part.description} ${cabName} ${sectorsMap.get(part.sector_id ?? "")?.name ?? ""} ${linkedText}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
-  }, [parts, machinesMap, sectorsMap, sectorFilter, machineFilter, categoryFilter, search]);
+  }, [parts, machinesMap, sectorsMap, cabinetsMap, sectorFilter, cabinetFilter, machineFilter, categoryFilter, search]);
 
   const summary = useMemo(() => summarizeKanbanParts(scopedParts), [scopedParts]);
 
@@ -129,6 +179,34 @@ export function KanbanPartsDashboard() {
     });
     return sortKanbanPartsByUrgency(filtered);
   }, [scopedParts, lightFilter]);
+
+  const handleSaveCabinet = async (input: KanbanCabinetInput, editingId?: string) => {
+    if (editingId) {
+      await updateCabinet(editingId, input);
+      toast({ title: "Armário (Kanban) atualizado" });
+    } else {
+      const created = await createCabinet(input);
+      toast({ title: `Armário "${created.name}" criado` });
+    }
+  };
+
+  const handleDeleteCabinet = async () => {
+    if (!deleteCabinetTarget) return;
+    try {
+      const targetId = deleteCabinetTarget.id;
+      await deleteCabinet(targetId);
+      if (cabinetFilter === targetId) setCabinetFilter("all");
+      toast({ title: "Armário (Kanban) removido" });
+    } catch (err: any) {
+      toast({
+        title: "Não foi possível excluir o armário",
+        description: err?.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteCabinetTarget(null);
+    }
+  };
 
   const handleSavePart = async (input: KanbanPartInput, editingId?: string) => {
     if (editingId) {
@@ -161,7 +239,7 @@ export function KanbanPartsDashboard() {
   };
 
   const getPartScope = (part: KanbanPart) =>
-    describeKanbanPartScope(part, machinesMap, sectorsMap, machineLabel);
+    describeKanbanPartScope(part, machinesMap, sectorsMap, machineLabel, cabinetsMap);
 
   return (
     <div className="space-y-6">
@@ -172,7 +250,7 @@ export function KanbanPartsDashboard() {
             Kanban de Peças
           </h1>
           <p className="text-sm text-muted-foreground">
-            Kanban por setor
+            Armários (Kanbans) e estoque de peças por setor
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -186,6 +264,17 @@ export function KanbanPartsDashboard() {
               Precisam Repor ({summary.needsRestock})
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={() => {
+              setEditingCabinet(null);
+              setCabinetDialogOpen(true);
+            }}
+            className="gap-2"
+          >
+            <Archive className="w-4 h-4" />
+            Novo Armário
+          </Button>
           <Button
             onClick={() => {
               setEditingPart(null);
@@ -261,7 +350,7 @@ export function KanbanPartsDashboard() {
       </div>
 
       {/* Filters */}
-      <div className="industrial-card p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="industrial-card p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <Select value={sectorFilter} onValueChange={handleSectorChange}>
           <SelectTrigger>
             <SelectValue placeholder="Filtrar por setor" />
@@ -271,6 +360,22 @@ export function KanbanPartsDashboard() {
             {sectors.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={cabinetFilter} onValueChange={handleCabinetChange}>
+          <SelectTrigger>
+            <SelectValue placeholder="Filtrar por armário" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os armários</SelectItem>
+            {visibleCabinets.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {sectorFilter === "all"
+                  ? `${c.name} (${sectorsMap.get(c.sector_id)?.name ?? "Setor"})`
+                  : c.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -308,13 +413,34 @@ export function KanbanPartsDashboard() {
         <div className="relative">
           <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
           <Input
-            placeholder="Buscar código ou descrição..."
+            placeholder="Buscar código, peça ou armário..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
       </div>
+
+      {/* Cabinets overview */}
+      {!loading && (
+        <KanbanCabinetsStrip
+          cabinets={visibleCabinets}
+          parts={parts}
+          sectorsMap={sectorsMap}
+          sectorFilter={sectorFilter}
+          selectedCabinetId={cabinetFilter}
+          onSelectCabinet={handleCabinetChange}
+          onCreateCabinet={() => {
+            setEditingCabinet(null);
+            setCabinetDialogOpen(true);
+          }}
+          onEditCabinet={(cabinet) => {
+            setEditingCabinet(cabinet);
+            setCabinetDialogOpen(true);
+          }}
+          onDeleteCabinet={setDeleteCabinetTarget}
+        />
+      )}
 
       {/* Parts List */}
       {loading ? (
@@ -397,14 +523,20 @@ export function KanbanPartsDashboard() {
                   </div>
 
                   <div
-                    className="text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-1"
+                    className="text-xs text-muted-foreground space-y-1"
                     title={scope.tooltip}
                   >
-                    <span className="font-mono font-medium text-foreground inline-flex items-center gap-1 min-w-0 truncate">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1 font-medium text-primary truncate">
+                        <Archive className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{scope.cabinetName}</span>
+                      </span>
+                      <span className="shrink-0">{scope.sectorName}</span>
+                    </div>
+                    <div className="font-mono font-medium text-foreground inline-flex items-center gap-1 min-w-0 max-w-full truncate">
                       {part.is_universal && <Globe className="w-3.5 h-3.5 text-primary shrink-0" />}
                       <span className="truncate">{scope.primary}</span>
-                    </span>
-                    <span className="shrink-0">{scope.secondary}</span>
+                    </div>
                   </div>
 
                   {/* Stock level bar */}
@@ -478,15 +610,32 @@ export function KanbanPartsDashboard() {
         </div>
       )}
 
+      <KanbanCabinetDialog
+        open={cabinetDialogOpen}
+        onOpenChange={setCabinetDialogOpen}
+        cabinet={editingCabinet}
+        hasParts={
+          editingCabinet
+            ? parts.some((p) => p.cabinet_id === editingCabinet.id)
+            : false
+        }
+        sectors={sectors}
+        defaultSectorId={sectorFilter}
+        onSave={handleSaveCabinet}
+      />
+
       <KanbanPartDialog
         open={partDialogOpen}
         onOpenChange={setPartDialogOpen}
         part={editingPart}
         sectors={sectors}
+        cabinets={cabinets}
         machines={machines}
         defaultSectorId={sectorFilter}
+        defaultCabinetId={cabinetFilter}
         defaultMachineId={machineFilter}
         onSave={handleSavePart}
+        onCreateCabinet={createCabinet}
       />
 
       <KanbanReplenishDialog
@@ -516,6 +665,25 @@ export function KanbanPartsDashboard() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Remover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!deleteCabinetTarget}
+        onOpenChange={(open) => !open && setDeleteCabinetTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover armário (Kanban)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O armário <strong>{deleteCabinetTarget?.name}</strong> será removido permanentemente.
+              Armários com peças cadastradas precisam estar vazios antes da exclusão.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCabinet}>Remover</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

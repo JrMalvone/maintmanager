@@ -3,10 +3,20 @@ export type KanbanTrafficLight = "green" | "yellow" | "red";
 export type KanbanOrderType = "corrective" | "preventive" | "backlog";
 export type KanbanMovementType = "consumption" | "replenishment" | "reversal" | "adjustment";
 
+export interface KanbanCabinet {
+  id: string;
+  sector_id: string;
+  name: string;
+  location: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface KanbanPart {
   id: string;
   machine_id: string | null;
   sector_id: string | null;
+  cabinet_id: string | null;
   is_universal: boolean;
   machine_ids: string[];
   code: string;
@@ -146,12 +156,14 @@ export function partAppliesToMachine(
 }
 
 export function partAppliesToScope(
-  part: Pick<KanbanPart, "is_universal" | "machine_ids" | "sector_id">,
+  part: Pick<KanbanPart, "is_universal" | "machine_ids" | "sector_id" | "cabinet_id">,
   sectorFilter: string,
   machineFilter: string,
-  machinesMap: Map<string, { sector_id: string | null }>
+  machinesMap: Map<string, { sector_id: string | null }>,
+  cabinetFilter = "all"
 ): boolean {
   if (sectorFilter !== "all" && part.sector_id !== sectorFilter) return false;
+  if (cabinetFilter !== "all" && part.cabinet_id !== cabinetFilter) return false;
   if (machineFilter === "universal") return part.is_universal;
   if (machineFilter !== "all") {
     return partAppliesToMachine(part, machineFilter, machinesMap.get(machineFilter)?.sector_id ?? null);
@@ -160,6 +172,8 @@ export function partAppliesToScope(
 }
 
 export interface KanbanPartScopeSummary {
+  cabinetName: string;
+  sectorName: string;
   primary: string;
   secondary: string;
   tooltip: string;
@@ -167,27 +181,34 @@ export interface KanbanPartScopeSummary {
 }
 
 export function describeKanbanPartScope(
-  part: Pick<KanbanPart, "is_universal" | "machine_ids" | "sector_id">,
+  part: Pick<KanbanPart, "is_universal" | "machine_ids" | "sector_id" | "cabinet_id">,
   machinesMap: Map<string, { code: string; model?: string | null; sector_id: string | null }>,
   sectorsMap: Map<string, { name: string }>,
-  formatMachine: (m: { code: string; model?: string | null } | undefined) => string
+  formatMachine: (m: { code: string; model?: string | null } | undefined) => string,
+  cabinetsMap?: Map<string, { name: string }>
 ): KanbanPartScopeSummary {
   const sectorName = part.sector_id ? sectorsMap.get(part.sector_id)?.name ?? "Setor não encontrado" : "Setor pendente";
+  const cabinetName = part.cabinet_id ? cabinetsMap?.get(part.cabinet_id)?.name ?? "Armário" : "Sem armário";
+  const locationLabel = part.cabinet_id ? `${cabinetName} · ${sectorName}` : sectorName;
   if (part.is_universal) {
     return {
+      cabinetName,
+      sectorName,
       primary: "Universal · Todas as máquinas",
-      secondary: sectorName,
-      tooltip: `Todas as máquinas de ${sectorName}`,
-      summaryText: `Universal · ${sectorName}`,
+      secondary: locationLabel,
+      tooltip: `${cabinetName} — Todas as máquinas de ${sectorName}`,
+      summaryText: `${locationLabel} · Universal`,
     };
   }
 
   if (part.machine_ids.length === 0) {
     return {
+      cabinetName,
+      sectorName,
       primary: "Sem equipamento vinculado",
-      secondary: sectorName,
-      tooltip: "Nenhum equipamento vinculado",
-      summaryText: "Sem equipamento vinculado",
+      secondary: locationLabel,
+      tooltip: `${cabinetName} — Nenhum equipamento vinculado`,
+      summaryText: `${locationLabel} · Sem equipamento vinculado`,
     };
   }
 
@@ -202,15 +223,16 @@ export function describeKanbanPartScope(
           .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }))
       : [`${part.machine_ids.length} equipamento(s)`];
 
-  const sectorNames = [sectorName];
-  const secondary = sectorName;
+  const secondary = locationLabel;
 
   if (labels.length === 1) {
     return {
+      cabinetName,
+      sectorName,
       primary: labels[0],
       secondary,
       tooltip: `${labels[0]} — ${secondary}`,
-      summaryText: `${labels[0]} (${secondary})`,
+      summaryText: `${secondary} · ${labels[0]}`,
     };
   }
 
@@ -219,9 +241,11 @@ export function describeKanbanPartScope(
   const fullList = labels.join(", ");
 
   return {
+    cabinetName,
+    sectorName,
     primary: `${labels.length} máquinas: ${preview}`,
     secondary,
-    tooltip: `${fullList}${sectorNames.length > 0 ? ` — Setores: ${sectorNames.join(", ")}` : ""}`,
-    summaryText: `${labels.length} máquinas (${preview})`,
+    tooltip: `${fullList} — ${secondary}`,
+    summaryText: `${secondary} · ${labels.length} máquinas (${preview})`,
   };
 }

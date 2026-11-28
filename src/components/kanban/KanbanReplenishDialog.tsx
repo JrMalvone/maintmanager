@@ -90,7 +90,7 @@ export function KanbanReplenishDialog({
               />
             </div>
             <p className="font-medium text-foreground">{part.description}</p>
-            <p className="text-xs text-muted-foreground">Equipamento: {machineDisplay}</p>
+            <p className="text-xs text-muted-foreground">Armário / Aplicação: {machineDisplay}</p>
             <div className="pt-2 mt-2 border-t border-border flex items-center justify-between text-xs">
               <span>
                 Saldo atual: <strong className="text-foreground">{part.current_quantity}</strong> / {part.target_quantity}

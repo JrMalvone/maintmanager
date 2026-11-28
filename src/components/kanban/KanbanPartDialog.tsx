@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Machine, Sector } from "@/hooks/useData";
-import type { KanbanPartInput } from "@/hooks/useKanbanParts";
-import { KANBAN_CATEGORY_LABELS, type KanbanCategory, type KanbanPart } from "@/lib/kanbanParts";
+import type { KanbanCabinetInput, KanbanPartInput } from "@/hooks/useKanbanParts";
+import {
+  KANBAN_CATEGORY_LABELS,
+  type KanbanCabinet,
+  type KanbanCategory,
+  type KanbanPart,
+} from "@/lib/kanbanParts";
 import { machineLabel } from "@/lib/machineLabel";
 import {
   Dialog,
@@ -22,17 +27,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Globe, Loader2, Search, X } from "lucide-react";
+import { Globe, Loader2, Plus, Search, X } from "lucide-react";
 
 interface KanbanPartDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   part: KanbanPart | null;
   sectors: Sector[];
+  cabinets: KanbanCabinet[];
   machines: Machine[];
   defaultSectorId?: string;
+  defaultCabinetId?: string;
   defaultMachineId?: string;
   onSave: (input: KanbanPartInput, editingId?: string) => Promise<void>;
+  onCreateCabinet?: (input: KanbanCabinetInput) => Promise<KanbanCabinet>;
 }
 
 export function KanbanPartDialog({
@@ -40,12 +48,19 @@ export function KanbanPartDialog({
   onOpenChange,
   part,
   sectors,
+  cabinets,
   machines,
   defaultSectorId,
+  defaultCabinetId,
   defaultMachineId,
   onSave,
+  onCreateCabinet,
 }: KanbanPartDialogProps) {
   const [sectorId, setSectorId] = useState<string>("");
+  const [cabinetId, setCabinetId] = useState<string>("");
+  const [showNewCabinet, setShowNewCabinet] = useState(false);
+  const [newCabinetName, setNewCabinetName] = useState("");
+  const [creatingCabinet, setCreatingCabinet] = useState(false);
   const [machineSearch, setMachineSearch] = useState("");
   const [isUniversal, setIsUniversal] = useState(false);
   const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([]);
@@ -65,9 +80,12 @@ export function KanbanPartDialog({
     if (!open) return;
     setError(null);
     setMachineSearch("");
+    setShowNewCabinet(false);
+    setNewCabinetName("");
     if (part) {
       const linkedIds = part.is_universal ? [] : part.machine_ids;
       setSectorId(part.sector_id ?? "");
+      setCabinetId(part.cabinet_id ?? "");
       setIsUniversal(part.is_universal);
       setSelectedMachineIds(linkedIds);
       setCode(part.code);
@@ -83,9 +101,23 @@ export function KanbanPartDialog({
           ? defaultMachineId
           : "";
       const machineObj = machines.find((m) => m.id === initialMachine);
-      setSectorId(
-        machineObj?.sector_id || (defaultSectorId && defaultSectorId !== "all" ? defaultSectorId : "")
-      );
+      const defaultCabObj =
+        defaultCabinetId && defaultCabinetId !== "all"
+          ? cabinets.find((c) => c.id === defaultCabinetId)
+          : undefined;
+      const initialSector =
+        defaultCabObj?.sector_id ||
+        machineObj?.sector_id ||
+        (defaultSectorId && defaultSectorId !== "all" ? defaultSectorId : "");
+      const matchingCabinets = cabinets.filter((c) => c.sector_id === initialSector);
+      const initialCabinet =
+        defaultCabObj && defaultCabObj.sector_id === initialSector
+          ? defaultCabObj.id
+          : matchingCabinets.length === 1
+            ? matchingCabinets[0].id
+            : "";
+      setSectorId(initialSector);
+      setCabinetId(initialCabinet);
       setIsUniversal(startUniversal);
       setSelectedMachineIds(initialMachine ? [initialMachine] : []);
       setCode("");
@@ -95,7 +127,40 @@ export function KanbanPartDialog({
       setCurrentQty("2");
       setCurrentTouched(false);
     }
-  }, [open, part, machines, defaultSectorId, defaultMachineId]);
+  }, [open, part, machines, cabinets, defaultSectorId, defaultCabinetId, defaultMachineId]);
+
+  const sectorCabinets = useMemo(
+    () => cabinets.filter((c) => c.sector_id === sectorId),
+    [cabinets, sectorId]
+  );
+
+  const handleSectorSelect = (value: string) => {
+    setSectorId(value);
+    setSelectedMachineIds([]);
+    setShowNewCabinet(false);
+    const matching = cabinets.filter((c) => c.sector_id === value);
+    setCabinetId(matching.length === 1 ? matching[0].id : "");
+  };
+
+  const handleQuickCreateCabinet = async () => {
+    if (!onCreateCabinet || !sectorId) return;
+    if (!newCabinetName.trim()) {
+      setError("Informe o nome do novo armário (Kanban).");
+      return;
+    }
+    setError(null);
+    setCreatingCabinet(true);
+    try {
+      const created = await onCreateCabinet({ sector_id: sectorId, name: newCabinetName.trim() });
+      setCabinetId(created.id);
+      setNewCabinetName("");
+      setShowNewCabinet(false);
+    } catch (err: any) {
+      setError(err?.message || "Erro ao criar armário (Kanban).");
+    } finally {
+      setCreatingCabinet(false);
+    }
+  };
 
   const filteredMachines = useMemo(() => {
     const q = machineSearch.trim().toLowerCase();
@@ -143,6 +208,10 @@ export function KanbanPartDialog({
       setError("Selecione o setor do Kanban.");
       return;
     }
+    if (!cabinetId) {
+      setError("Selecione o armário (Kanban) onde a peça fica estocada.");
+      return;
+    }
     if (!isUniversal && selectedMachineIds.length === 0) {
       setError("Selecione pelo menos um equipamento ou marque como Peça Universal.");
       return;
@@ -169,6 +238,7 @@ export function KanbanPartDialog({
       await onSave(
         {
           sector_id: sectorId,
+          cabinet_id: cabinetId,
           is_universal: isUniversal,
           machine_ids: isUniversal ? [] : selectedMachineIds,
           code: code.trim(),
@@ -231,13 +301,93 @@ export function KanbanPartDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="kanban-sector">Setor do Kanban *</Label>
-            <Select value={sectorId} disabled={Boolean(part?.sector_id)} onValueChange={(value) => { setSectorId(value); setSelectedMachineIds([]); }}>
-              <SelectTrigger id="kanban-sector"><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
-              <SelectContent>{sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="kanban-sector">Setor *</Label>
+              <Select value={sectorId} disabled={Boolean(part?.sector_id)} onValueChange={handleSectorSelect}>
+                <SelectTrigger id="kanban-sector">
+                  <SelectValue placeholder="Selecione o setor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sectors.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="kanban-cabinet">Armário (Kanban) *</Label>
+                {sectorId && onCreateCabinet && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => setShowNewCabinet((cur) => !cur)}
+                  >
+                    <Plus className="w-3 h-3 mr-0.5" />
+                    Novo armário
+                  </Button>
+                )}
+              </div>
+              <Select
+                value={cabinetId}
+                disabled={!sectorId || sectorCabinets.length === 0}
+                onValueChange={setCabinetId}
+              >
+                <SelectTrigger id="kanban-cabinet">
+                  <SelectValue
+                    placeholder={
+                      !sectorId
+                        ? "Escolha o setor primeiro"
+                        : sectorCabinets.length === 0
+                          ? "Nenhum armário neste setor"
+                          : "Selecione o armário"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {sectorCabinets.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
+          {sectorId && onCreateCabinet && (showNewCabinet || sectorCabinets.length === 0) && (
+            <div className="rounded-lg border border-dashed border-primary/50 bg-primary/5 p-3 space-y-2">
+              <p className="text-xs font-medium">
+                {sectorCabinets.length === 0
+                  ? "Crie o primeiro armário (Kanban) deste setor:"
+                  : "Criar novo armário (Kanban) neste setor:"}
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ex: Armário Mecânico Linha 1"
+                  value={newCabinetName}
+                  onChange={(e) => setNewCabinetName(e.target.value)}
+                  className="h-9 text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 shrink-0"
+                  disabled={creatingCabinet}
+                  onClick={handleQuickCreateCabinet}
+                >
+                  {creatingCabinet && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
+                  Criar
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-0.5">
@@ -353,7 +503,7 @@ export function KanbanPartDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="kanban-target">Qtd. Estipulada no Kanban *</Label>
+              <Label htmlFor="kanban-target">Qtd. Estipulada no Armário *</Label>
               <Input
                 id="kanban-target"
                 type="number"
@@ -365,7 +515,7 @@ export function KanbanPartDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="kanban-current">Saldo Atual no Kanban *</Label>
+              <Label htmlFor="kanban-current">Saldo Atual no Armário *</Label>
               <Input
                 id="kanban-current"
                 type="number"

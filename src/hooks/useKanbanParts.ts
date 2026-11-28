@@ -2,14 +2,22 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAllRows";
 import type {
+  KanbanCabinet,
   KanbanCategory,
   KanbanMovement,
   KanbanOrderType,
   KanbanPart,
 } from "@/lib/kanbanParts";
 
+export interface KanbanCabinetInput {
+  sector_id: string;
+  name: string;
+  location?: string | null;
+}
+
 export interface KanbanPartInput {
   sector_id: string;
+  cabinet_id: string;
   is_universal: boolean;
   machine_ids: string[];
   code: string;
@@ -33,10 +41,19 @@ function hydratePart(row: RawKanbanPartRow, linksMap: Map<string, string[]>): Ka
 
 export function useKanbanParts() {
   const [parts, setParts] = useState<KanbanPart[]>([]);
+  const [cabinets, setCabinets] = useState<KanbanCabinet[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchParts = useCallback(async () => {
-    const [partsRes, linksRes] = await Promise.all([
+    const [cabinetsRes, partsRes, linksRes] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from("kanban_cabinets")
+          .select("*")
+          .order("name", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to)
+      ),
       fetchAllRows((from, to) =>
         supabase
           .from("kanban_parts")
@@ -54,6 +71,10 @@ export function useKanbanParts() {
           .range(from, to)
       ),
     ]);
+
+    if (!cabinetsRes.error && cabinetsRes.data) {
+      setCabinets(cabinetsRes.data as KanbanCabinet[]);
+    }
 
     if (!partsRes.error && partsRes.data) {
       const linksMap = new Map<string, string[]>();
@@ -82,6 +103,60 @@ export function useKanbanParts() {
     };
   }, [fetchParts]);
 
+  const createCabinet = async (input: KanbanCabinetInput): Promise<KanbanCabinet> => {
+    const { data, error } = await supabase
+      .from("kanban_cabinets")
+      .insert({
+        sector_id: input.sector_id,
+        name: input.name.trim(),
+        location: input.location?.trim() || null,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      if (error.code === "23505") {
+        throw new Error("Já existe um armário (Kanban) com este nome neste setor.");
+      }
+      throw error;
+    }
+    await fetchParts();
+    return data as KanbanCabinet;
+  };
+
+  const updateCabinet = async (id: string, input: KanbanCabinetInput): Promise<KanbanCabinet> => {
+    const { data, error } = await supabase
+      .from("kanban_cabinets")
+      .update({
+        sector_id: input.sector_id,
+        name: input.name.trim(),
+        location: input.location?.trim() || null,
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) {
+      if (error.code === "23505") {
+        throw new Error("Já existe um armário (Kanban) com este nome neste setor.");
+      }
+      throw error;
+    }
+    await fetchParts();
+    return data as KanbanCabinet;
+  };
+
+  const deleteCabinet = async (id: string) => {
+    const { error } = await supabase.from("kanban_cabinets").delete().eq("id", id);
+    if (error) {
+      if (error.code === "23503") {
+        throw new Error(
+          "Não é possível excluir um armário que possui peças cadastradas. Remova ou mova as peças primeiro."
+        );
+      }
+      throw error;
+    }
+    await fetchParts();
+  };
+
   const createPart = async (input: KanbanPartInput) => {
     const machineIds = input.is_universal
       ? []
@@ -91,6 +166,7 @@ export function useKanbanParts() {
       .from("kanban_parts")
       .insert({
         sector_id: input.sector_id,
+        cabinet_id: input.cabinet_id,
         is_universal: input.is_universal,
         machine_id: input.is_universal ? null : machineIds[0] ?? null,
         code: input.code.trim(),
@@ -124,6 +200,7 @@ export function useKanbanParts() {
       .from("kanban_parts")
       .update({
         sector_id: input.sector_id,
+        cabinet_id: input.cabinet_id,
         is_universal: input.is_universal,
         machine_id: input.is_universal ? null : machineIds[0] ?? null,
         code: input.code.trim(),
@@ -195,9 +272,13 @@ export function useKanbanParts() {
   };
 
   return {
+    cabinets,
     parts,
     loading,
     refetch: fetchParts,
+    createCabinet,
+    updateCabinet,
+    deleteCabinet,
     createPart,
     updatePart,
     deletePart,
@@ -210,6 +291,7 @@ export function useOrderKanbanParts(
   orderType: KanbanOrderType,
   machineId: string | null
 ) {
+  const [cabinets, setCabinets] = useState<KanbanCabinet[]>([]);
   const [machineParts, setMachineParts] = useState<KanbanPart[]>([]);
   const [extraParts, setExtraParts] = useState<KanbanPart[]>([]);
   const [orderMovements, setOrderMovements] = useState<KanbanMovement[]>([]);
@@ -217,6 +299,7 @@ export function useOrderKanbanParts(
 
   const fetchData = useCallback(async () => {
     if (!orderId) {
+      setCabinets([]);
       setMachineParts([]);
       setExtraParts([]);
       setOrderMovements([]);
@@ -234,11 +317,24 @@ export function useOrderKanbanParts(
       sectorId = data?.sector_id ?? null;
     }
     const filterColumn = orderType === "corrective" ? "corrective_order_id" : "preventive_order_id";
-    const [partsRes, linkedRes, movRes] = await Promise.all([
+    const [cabinetsRes, partsRes, linkedRes, movRes] = await Promise.all([
+      sectorId
+        ? fetchAllRows((from, to) =>
+            supabase
+              .from("kanban_cabinets")
+              .select("*")
+              .eq("sector_id", sectorId)
+              .order("name", { ascending: true })
+              .order("id", { ascending: true })
+              .range(from, to)
+          )
+        : Promise.resolve({ data: [], error: null }),
       sectorId ? fetchAllRows((from, to) => supabase.from("kanban_parts").select("*").eq("sector_id", sectorId).order("id").range(from, to)) : Promise.resolve({ data: [], error: null }),
       machineId ? fetchAllRows((from, to) => supabase.from("kanban_part_machines").select("part_id").eq("machine_id", machineId).order("part_id").range(from, to)) : Promise.resolve({ data: [], error: null }),
       supabase.from("kanban_movements").select("*").eq(filterColumn, orderId).order("created_at", { ascending: false }),
     ]);
+    const sectorCabinets = (cabinetsRes.data ?? []) as KanbanCabinet[];
+    const cabinetsNameMap = new Map(sectorCabinets.map((c) => [c.id, c.name]));
     const linkedPartIds = new Set((linkedRes.data ?? []).map((r) => r.part_id));
     const availableMap = new Map<string, KanbanPart>();
     for (const row of (partsRes.data ?? []) as RawKanbanPartRow[]) {
@@ -248,6 +344,10 @@ export function useOrderKanbanParts(
     }
 
     const sortedAvailable = Array.from(availableMap.values()).sort((a, b) => {
+      const cabA = a.cabinet_id ? cabinetsNameMap.get(a.cabinet_id) ?? "" : "";
+      const cabB = b.cabinet_id ? cabinetsNameMap.get(b.cabinet_id) ?? "" : "";
+      const cabCmp = cabA.localeCompare(cabB, "pt-BR", { numeric: true });
+      if (cabCmp !== 0) return cabCmp;
       if (a.is_universal !== b.is_universal) return a.is_universal ? 1 : -1;
       if (a.category !== b.category) return a.category.localeCompare(b.category);
       return a.code.localeCompare(b.code, "pt-BR", { numeric: true });
@@ -260,17 +360,38 @@ export function useOrderKanbanParts(
     const missingPartIds = Array.from(
       new Set(movements.map((m) => m.part_id).filter((pid) => !availableMap.has(pid)))
     );
+    let mergedCabinets = sectorCabinets;
     if (missingPartIds.length > 0) {
       const { data: missingRows } = await supabase
         .from("kanban_parts")
         .select("*")
         .in("id", missingPartIds);
-      setExtraParts(
-        ((missingRows as RawKanbanPartRow[]) ?? []).map((row) => ({ ...row, machine_ids: [] }))
+      const hydratedMissing = ((missingRows as RawKanbanPartRow[]) ?? []).map((row) => ({
+        ...row,
+        machine_ids: [],
+      }));
+      setExtraParts(hydratedMissing);
+      const knownCabIds = new Set(sectorCabinets.map((c) => c.id));
+      const missingCabIds = Array.from(
+        new Set(
+          hydratedMissing
+            .map((p) => p.cabinet_id)
+            .filter((cid): cid is string => Boolean(cid) && !knownCabIds.has(cid))
+        )
       );
+      if (missingCabIds.length > 0) {
+        const { data: extraCabRows } = await supabase
+          .from("kanban_cabinets")
+          .select("*")
+          .in("id", missingCabIds);
+        if (extraCabRows) {
+          mergedCabinets = [...sectorCabinets, ...(extraCabRows as KanbanCabinet[])];
+        }
+      }
     } else {
       setExtraParts([]);
     }
+    setCabinets(mergedCabinets);
 
     setLoading(false);
   }, [orderId, orderType, machineId]);
@@ -310,6 +431,7 @@ export function useOrderKanbanParts(
   };
 
   return {
+    cabinets,
     machineParts,
     extraParts,
     orderMovements,

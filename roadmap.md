@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Implementar armários (Kanbans) por setor com estoque por armário e baixa vinculada nas ordens de serviço
 - [x] Separar Kanban por setor, preservar estoque existente e verificar cadastro, reposição e baixa nas ordens
 
 - [x] Implementar periodicidade, geração automática sete dias antes e recálculo após conclusão

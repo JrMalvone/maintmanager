@@ -40,6 +40,7 @@ export function OrderKanbanPartsPanel({
   const { user } = useAppAuth();
   const { toast } = useToast();
   const {
+    cabinets,
     machineParts,
     extraParts,
     orderMovements,
@@ -48,6 +49,7 @@ export function OrderKanbanPartsPanel({
     reverseConsumption,
   } = useOrderKanbanParts(orderId, orderType, machineId);
 
+  const [selectedCabinetId, setSelectedCabinetId] = useState("all");
   const [selectedPartId, setSelectedPartId] = useState("");
   const [qty, setQty] = useState("1");
   const [submitting, setSubmitting] = useState(false);
@@ -63,7 +65,22 @@ export function OrderKanbanPartsPanel({
     [machineParts, extraParts]
   );
 
-  const selectedPart = machineParts.find((part) => part.id === selectedPartId);
+  const cabinetsMap = useMemo(
+    () => new Map(cabinets.map((c) => [c.id, c])),
+    [cabinets]
+  );
+
+  const availableCabinets = useMemo(() => {
+    const ids = new Set(machineParts.map((p) => p.cabinet_id).filter(Boolean));
+    return cabinets.filter((c) => ids.has(c.id));
+  }, [cabinets, machineParts]);
+
+  const filteredParts = useMemo(() => {
+    if (selectedCabinetId === "all") return machineParts;
+    return machineParts.filter((p) => p.cabinet_id === selectedCabinetId);
+  }, [machineParts, selectedCabinetId]);
+
+  const selectedPart = filteredParts.find((part) => part.id === selectedPartId);
 
   const handleConsume = async () => {
     if (!selectedPart) {
@@ -92,9 +109,12 @@ export function OrderKanbanPartsPanel({
         user || "Manutenção"
       );
       const nextLight = getKanbanTrafficLight(movement.new_quantity, selectedPart.target_quantity);
+      const cabinetName = selectedPart.cabinet_id
+        ? cabinetsMap.get(selectedPart.cabinet_id)?.name
+        : undefined;
       toast({
         title: `Peça baixada do Kanban (${selectedPart.code})`,
-        description: `Saldo restante: ${movement.new_quantity}/${selectedPart.target_quantity} · ${KANBAN_TRAFFIC_LIGHT_LABELS[nextLight]}`,
+        description: `${cabinetName ? `${cabinetName} · ` : ""}Saldo restante: ${movement.new_quantity}/${selectedPart.target_quantity} · ${KANBAN_TRAFFIC_LIGHT_LABELS[nextLight]}`,
       });
       setSelectedPartId("");
       setQty("1");
@@ -160,14 +180,42 @@ export function OrderKanbanPartsPanel({
               </div>
             ) : (
               <div className="space-y-2">
+                {availableCabinets.length > 1 && (
+                  <Select
+                    value={selectedCabinetId}
+                    onValueChange={(value) => {
+                      setSelectedCabinetId(value);
+                      setSelectedPartId("");
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-xs" aria-label="Filtrar por armário do Kanban">
+                      <SelectValue placeholder="Filtrar por armário (Kanban)..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Todos os armários do setor ({availableCabinets.length})
+                      </SelectItem>
+                      {availableCabinets.map((cab) => {
+                        const count = machineParts.filter((p) => p.cabinet_id === cab.id).length;
+                        return (
+                          <SelectItem key={cab.id} value={cab.id}>
+                            {cab.name} ({count} {count === 1 ? "peça" : "peças"})
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_84px_auto] gap-2">
                   <Select value={selectedPartId} onValueChange={setSelectedPartId}>
                     <SelectTrigger className="h-9 text-xs">
                       <SelectValue placeholder="Selecione a peça do Kanban..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {machineParts.map((part) => {
+                      {filteredParts.map((part) => {
                         const light = getKanbanTrafficLight(part.current_quantity, part.target_quantity);
+                        const cabName = part.cabinet_id ? cabinetsMap.get(part.cabinet_id)?.name : undefined;
                         return (
                           <SelectItem
                             key={part.id}
@@ -177,9 +225,10 @@ export function OrderKanbanPartsPanel({
                             <span className="flex items-center gap-2">
                               <KanbanTrafficDot light={light} className="w-2 h-2" />
                               <span className="font-mono font-semibold">{part.code}</span>
-                              <span className="truncate max-w-[190px]">{part.description}</span>
+                              <span className="truncate max-w-[170px]">{part.description}</span>
                               <span className="text-muted-foreground">
-                                ({part.is_universal ? "Universal · " : ""}
+                                ({cabName ? `${cabName} · ` : ""}
+                                {part.is_universal ? "Universal · " : ""}
                                 {KANBAN_CATEGORY_LABELS[part.category]} · Saldo {part.current_quantity}/{part.target_quantity})
                               </span>
                             </span>
@@ -219,6 +268,15 @@ export function OrderKanbanPartsPanel({
                 </div>
                 {selectedPart && (
                   <p className="text-xs text-muted-foreground">
+                    {selectedPart.cabinet_id && cabinetsMap.get(selectedPart.cabinet_id) && (
+                      <>
+                        Armário:{" "}
+                        <strong className="text-foreground">
+                          {cabinetsMap.get(selectedPart.cabinet_id)?.name}
+                        </strong>{" "}
+                        ·{" "}
+                      </>
+                    )}
                     Disponível no Kanban: <strong>{selectedPart.current_quantity}</strong> de{" "}
                     {selectedPart.target_quantity} ({KANBAN_CATEGORY_LABELS[selectedPart.category]})
                   </p>
@@ -231,6 +289,7 @@ export function OrderKanbanPartsPanel({
             <div className="space-y-1.5 pt-1">
               {activeConsumptions.map((m) => {
                 const part = partsMap.get(m.part_id);
+                const cabName = part?.cabinet_id ? cabinetsMap.get(part.cabinet_id)?.name : undefined;
                 return (
                   <div
                     key={m.id}
@@ -244,6 +303,7 @@ export function OrderKanbanPartsPanel({
                         {part?.description || "Peça removida do catálogo"}
                       </p>
                       <p className="text-muted-foreground">
+                        {cabName ? `${cabName} · ` : ""}
                         {part ? `${KANBAN_CATEGORY_LABELS[part.category]} · ` : ""}
                         Qtd: <strong className="text-foreground">{m.quantity}</strong> ·{" "}
                         {formatDateTime(m.created_at)}
