@@ -58,22 +58,26 @@ export function presetRange(preset: Exclude<PresetPeriod, "custom">, now = new D
   return { start, end: endOfDay(now), preset };
 }
 
-export function loadSavedFilter(): DateFilter {
+export function loadSavedFilter(storageKey = FILTER_KEY): DateFilter {
   try {
-    const raw = localStorage.getItem(FILTER_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return getDefaultFilter();
     const s = JSON.parse(raw);
     if (s.preset === "custom" && s.start && s.end) {
-      return { start: new Date(s.start), end: new Date(s.end), preset: "custom" };
+      const start = new Date(s.start);
+      const end = new Date(s.end);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+        return { start, end, preset: "custom" };
+      }
     }
     if (["daily", "weekly", "monthly", "yearly"].includes(s.preset)) return presetRange(s.preset);
   } catch { /* ignore */ }
   return getDefaultFilter();
 }
 
-export function saveFilter(f: DateFilter) {
+export function saveFilter(f: DateFilter, storageKey = FILTER_KEY) {
   try {
-    localStorage.setItem(FILTER_KEY, JSON.stringify({ preset: f.preset, start: f.start.toISOString(), end: f.end.toISOString() }));
+    localStorage.setItem(storageKey, JSON.stringify({ preset: f.preset, start: f.start.toISOString(), end: f.end.toISOString() }));
   } catch { /* ignore */ }
 }
 

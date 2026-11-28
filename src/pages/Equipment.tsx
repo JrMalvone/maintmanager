@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { DashboardFilters, loadSavedFilter, type DateFilter } from "@/components/manager/DashboardFilters";
+import { DashboardFilters, loadSavedFilter, saveFilter, type DateFilter } from "@/components/manager/DashboardFilters";
 import type { ServiceOrder, Machine } from "@/hooks/useData";
 import type { WorkLog } from "@/hooks/useWorkLogs";
 import { computeMachineMetrics, fmtMin, type MachineMetrics } from "@/lib/machineMetrics";
@@ -21,6 +21,10 @@ import { toast } from "sonner";
 import { OrderDetailSheet } from "@/components/technician/OrderDetailSheet";
 import { cn } from "@/lib/utils";
 import { fetchAllRows } from "@/lib/fetchAllRows";
+import { usePersistedString } from "@/lib/persistedFilters";
+
+const EQUIPMENT_DATE_FILTER_KEY = "cmms.equipment.dateFilter";
+const EQUIPMENT_SORTS = ["critical", "downtime", "stopped", "alpha"] as const;
 
 type Sector = { id: string; name: string; shifts_count: number };
 type Row = { machine: Machine & { status?: string }; metrics: MachineMetrics; orders: ServiceOrder[] };
@@ -38,14 +42,25 @@ export default function EquipmentPage() {
   const [machines, setMachines] = useState<(Machine & { status?: string })[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<DateFilter>(loadSavedFilter);
-  const [sectorId, setSectorId] = useState("all");
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("critical");
+  const [filter, setFilterState] = useState<DateFilter>(() => loadSavedFilter(EQUIPMENT_DATE_FILTER_KEY));
+  const [sectorId, setSectorId] = usePersistedString("cmms.equipment.sector", "all");
+  const [search, setSearch] = usePersistedString("cmms.equipment.search", "");
+  const [sort, setSort] = usePersistedString("cmms.equipment.sort", "critical", EQUIPMENT_SORTS);
   const [selected, setSelected] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<Record<string, string>>({});
   const [aiLoading, setAiLoading] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+
+  const setFilter = (next: DateFilter) => {
+    setFilterState(next);
+    saveFilter(next, EQUIPMENT_DATE_FILTER_KEY);
+  };
+
+  useEffect(() => {
+    if (!loading && sectorId !== "all" && sectors.length > 0 && !sectors.some((s) => s.id === sectorId)) {
+      setSectorId("all");
+    }
+  }, [loading, sectorId, sectors, setSectorId]);
 
   async function load() {
       const [o, l, m, s] = await Promise.all([
@@ -215,7 +230,7 @@ export default function EquipmentPage() {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" placeholder="Buscar por código, modelo ou fabricante" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Select value={sort} onValueChange={setSort}>
+          <Select value={sort} onValueChange={(v) => setSort(v as (typeof EQUIPMENT_SORTS)[number])}>
             <SelectTrigger className="sm:w-56"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="critical">Mais críticos primeiro</SelectItem>

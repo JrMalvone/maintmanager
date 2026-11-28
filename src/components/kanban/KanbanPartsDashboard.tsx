@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMachines, useSectors } from "@/hooks/useData";
 import {
   useKanbanParts,
@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { usePersistedString } from "@/lib/persistedFilters";
 import {
   AlertTriangle,
   Archive,
@@ -63,6 +64,8 @@ import {
 } from "lucide-react";
 
 type LightFilter = "all" | "restock" | KanbanTrafficLight;
+const KANBAN_CATEGORIES = ["all", "mechanical", "electronic"] as const;
+const KANBAN_LIGHTS = ["all", "restock", "green", "yellow", "red"] as const;
 
 export function KanbanPartsDashboard() {
   const { user } = useAppAuth();
@@ -82,12 +85,12 @@ export function KanbanPartsDashboard() {
     replenishPart,
   } = useKanbanParts();
 
-  const [sectorFilter, setSectorFilter] = useState("all");
-  const [cabinetFilter, setCabinetFilter] = useState("all");
-  const [machineFilter, setMachineFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState<"all" | KanbanCategory>("all");
-  const [lightFilter, setLightFilter] = useState<LightFilter>("all");
-  const [search, setSearch] = useState("");
+  const [sectorFilter, setSectorFilter] = usePersistedString("cmms.kanban.sector", "all");
+  const [cabinetFilter, setCabinetFilter] = usePersistedString("cmms.kanban.cabinet", "all");
+  const [machineFilter, setMachineFilter] = usePersistedString("cmms.kanban.machine", "all");
+  const [categoryFilter, setCategoryFilter] = usePersistedString<"all" | KanbanCategory>("cmms.kanban.category", "all", KANBAN_CATEGORIES);
+  const [lightFilter, setLightFilter] = usePersistedString<LightFilter>("cmms.kanban.light", "all", KANBAN_LIGHTS);
+  const [search, setSearch] = usePersistedString("cmms.kanban.search", "");
 
   const [cabinetDialogOpen, setCabinetDialogOpen] = useState(false);
   const [editingCabinet, setEditingCabinet] = useState<KanbanCabinet | null>(null);
@@ -102,6 +105,29 @@ export function KanbanPartsDashboard() {
   const sectorsMap = useMemo(() => new Map(sectors.map((s) => [s.id, s])), [sectors]);
   const cabinetsMap = useMemo(() => new Map(cabinets.map((c) => [c.id, c])), [cabinets]);
   const machinesMap = useMemo(() => new Map(machines.map((m) => [m.id, m])), [machines]);
+
+  useEffect(() => {
+    if (sectorFilter !== "all" && sectors.length > 0 && !sectorsMap.has(sectorFilter)) {
+      setSectorFilter("all");
+    }
+  }, [sectorFilter, sectors.length, sectorsMap, setSectorFilter]);
+
+  useEffect(() => {
+    if (!loading && cabinetFilter !== "all" && !cabinetsMap.has(cabinetFilter)) {
+      setCabinetFilter("all");
+    }
+  }, [loading, cabinetFilter, cabinetsMap, setCabinetFilter]);
+
+  useEffect(() => {
+    if (
+      machineFilter !== "all" &&
+      machineFilter !== "universal" &&
+      machines.length > 0 &&
+      !machinesMap.has(machineFilter)
+    ) {
+      setMachineFilter("all");
+    }
+  }, [machineFilter, machines.length, machinesMap, setMachineFilter]);
 
   const visibleCabinets = useMemo(() => {
     if (sectorFilter === "all") return cabinets;

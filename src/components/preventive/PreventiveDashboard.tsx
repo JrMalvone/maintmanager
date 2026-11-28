@@ -30,6 +30,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ClipboardList, Factory, Loader2, Search } from "lucide-react";
+import { usePersistedString, usePersistedStringArray } from "@/lib/persistedFilters";
+
+const PREVENTIVE_TABS = ["pending_planning", "waiting_parts", "planned", "in_progress", "completed"] as const;
+const ORDER_TYPES: readonly ("all" | PreventiveOrderType)[] = ["all", "preventive", "backlog"];
+const MAINT_TYPES: readonly ("all" | PreventiveMaintenanceType)[] = ["all", "electronic", "mechanical", "metalwork", "parts_purchase"];
+const PRIORITIES: readonly ("all" | PreventivePriority)[] = ["all", "critical", "high", "medium", "low"];
 
 export function PreventiveDashboard() {
   const { orders, loading, refetch } = usePreventiveOrders();
@@ -39,11 +45,12 @@ export function PreventiveDashboard() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const [search, setSearch] = useState("");
-  const [sectorIds, setSectorIds] = useState<string[]>([]);
-  const [typeFilter, setTypeFilter] = useState<"all" | PreventiveOrderType>("all");
-  const [maintFilter, setMaintFilter] = useState<"all" | PreventiveMaintenanceType>("all");
-  const [priorityFilter, setPriorityFilter] = useState<"all" | PreventivePriority>("all");
+  const [activeTab, setActiveTab] = usePersistedString("cmms.preventive.tab", "pending_planning", PREVENTIVE_TABS);
+  const [search, setSearch] = usePersistedString("cmms.preventive.search", "");
+  const [sectorIds, setSectorIds] = usePersistedStringArray("cmms.preventive.sectors");
+  const [typeFilter, setTypeFilter] = usePersistedString<"all" | PreventiveOrderType>("cmms.preventive.type", "all", ORDER_TYPES);
+  const [maintFilter, setMaintFilter] = usePersistedString<"all" | PreventiveMaintenanceType>("cmms.preventive.maintType", "all", MAINT_TYPES);
+  const [priorityFilter, setPriorityFilter] = usePersistedString<"all" | PreventivePriority>("cmms.preventive.priority", "all", PRIORITIES);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -313,7 +320,7 @@ export function PreventiveDashboard() {
       </div>
 
       {/* Workflow Tabs */}
-      <Tabs defaultValue="pending_planning" className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as (typeof PREVENTIVE_TABS)[number])} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto gap-1 p-1">
           <TabsTrigger value="pending_planning" className="text-xs sm:text-sm py-1.5">
             Planejar ({pendingOrders.length})

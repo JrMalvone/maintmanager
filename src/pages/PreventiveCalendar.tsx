@@ -14,9 +14,13 @@ import { SectorMultiSelect } from "@/components/technician/SectorMultiSelect";
 import { PreventiveOrderDetailSheet } from "@/components/preventive/PreventiveOrderDetailSheet";
 import { PreventivePlanEditor } from "@/components/preventive/PreventivePlanEditor";
 import { PERIODICITIES, Periodicity, projectPreventiveDates, dateKey, isInReleaseWindow } from "@/lib/preventiveSchedule";
-import { PreventiveOrder, PREVENTIVE_MAINTENANCE_LABELS, formatEstimatedMinutes, getPreventiveOrderDelayInfo } from "@/lib/preventiveOrders";
+import { PreventiveMaintenanceType, PreventiveOrder, PREVENTIVE_MAINTENANCE_LABELS, formatEstimatedMinutes, getPreventiveOrderDelayInfo } from "@/lib/preventiveOrders";
 import { AlertTriangle, ChevronLeft, ChevronRight, CalendarDays, ClipboardList, Loader2, Search, ShoppingCart, TimerOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePersistedBoolean, usePersistedString, usePersistedStringArray } from "@/lib/persistedFilters";
+
+const CALENDAR_VIEWS = ["month", "year"] as const;
+const CALENDAR_AREAS: readonly ("all" | PreventiveMaintenanceType)[] = ["all", "electronic", "mechanical", "metalwork", "parts_purchase"];
 
 type CalendarEvent = {
   date: string;
@@ -49,12 +53,13 @@ function CalendarContent() {
   const {orders,loading:loadingOrders,refetch:refetchOrders} = usePreventiveOrders();
   const {sectors} = useSectors(); const {machines} = useMachines(undefined,false);
   const [date,setDate] = useState(startOfMonth(new Date()));
-  const [view,setView] = useState("month");
-  const [sectorIds,setSectorIds] = useState<string[]>([]);
-  const [area,setArea] = useState("all"); const [search,setSearch] = useState("");
+  const [view,setView] = usePersistedString("cmms.calendar.view", "month", CALENDAR_VIEWS);
+  const [sectorIds,setSectorIds] = usePersistedStringArray("cmms.calendar.sectors");
+  const [area,setArea] = usePersistedString("cmms.calendar.area", "all", CALENDAR_AREAS);
+  const [search,setSearch] = usePersistedString("cmms.calendar.search", "");
   const [selectedOrderId,setSelectedOrderId] = useState<string|null>(null);
   const [selectedPlan,setSelectedPlan] = useState<PreventivePlan|null>(null);
-  const [showPaused,setShowPaused] = useState(false);
+  const [showPaused,setShowPaused] = usePersistedBoolean("cmms.calendar.showPaused", false);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 30_000);
@@ -213,10 +218,10 @@ function CalendarContent() {
     <header className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold flex items-center gap-2"><CalendarDays className="text-primary h-6 w-6"/>Calendário de Preventivas</h1><Button asChild variant="outline"><Link to="/dashboard/preventive"><ClipboardList className="mr-2 h-4 w-4"/>Ordens</Link></Button></header>
     <div className="flex flex-wrap gap-3 border-y border-border py-3">
       <SectorMultiSelect sectors={sectors} selected={sectorIds} onChange={setSectorIds}/>
-      <Select value={area} onValueChange={setArea}><SelectTrigger className="w-48" aria-label="Tipo de manutenção"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">Todas as áreas</SelectItem>{Object.entries(PREVENTIVE_MAINTENANCE_LABELS).map(([k,v])=><SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
+      <Select value={area} onValueChange={(v)=>setArea(v as (typeof CALENDAR_AREAS)[number])}><SelectTrigger className="w-48" aria-label="Tipo de manutenção"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">Todas as áreas</SelectItem>{Object.entries(PREVENTIVE_MAINTENANCE_LABELS).map(([k,v])=><SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
       <div className="relative flex-1 min-w-48"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/><Input aria-label="Buscar preventiva" placeholder="Atividade ou equipamento" value={search} onChange={e=>setSearch(e.target.value)} className="pl-9"/></div>
     </div>
-    <div className="flex flex-wrap gap-3 items-center justify-between"><div className="flex items-center gap-2"><Button size="icon" variant="outline" aria-label="Período anterior" onClick={()=>setDate(addMonths(date,view==="year"?-12:-1))}><ChevronLeft className="h-4 w-4"/></Button><h2 className="min-w-40 text-center font-semibold capitalize">{view==="year"?format(date,"yyyy"):format(date,"MMMM yyyy",{locale:ptBR})}</h2><Button size="icon" variant="outline" aria-label="Próximo período" onClick={()=>setDate(addMonths(date,view==="year"?12:1))}><ChevronRight className="h-4 w-4"/></Button><Button variant="ghost" onClick={()=>setDate(startOfMonth(new Date()))}>Hoje</Button></div><Tabs value={view} onValueChange={setView}><TabsList><TabsTrigger value="month">Mês</TabsTrigger><TabsTrigger value="year">Ano</TabsTrigger></TabsList></Tabs></div>
+    <div className="flex flex-wrap gap-3 items-center justify-between"><div className="flex items-center gap-2"><Button size="icon" variant="outline" aria-label="Período anterior" onClick={()=>setDate(addMonths(date,view==="year"?-12:-1))}><ChevronLeft className="h-4 w-4"/></Button><h2 className="min-w-40 text-center font-semibold capitalize">{view==="year"?format(date,"yyyy"):format(date,"MMMM yyyy",{locale:ptBR})}</h2><Button size="icon" variant="outline" aria-label="Próximo período" onClick={()=>setDate(addMonths(date,view==="year"?12:1))}><ChevronRight className="h-4 w-4"/></Button><Button variant="ghost" onClick={()=>setDate(startOfMonth(new Date()))}>Hoje</Button></div><Tabs value={view} onValueChange={(v)=>setView(v as (typeof CALENDAR_VIEWS)[number])}><TabsList><TabsTrigger value="month">Mês</TabsTrigger><TabsTrigger value="year">Ano</TabsTrigger></TabsList></Tabs></div>
     <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs items-center">
       {Object.entries(statusStyle)
         .filter(([s]) => s !== "Cancelada")
